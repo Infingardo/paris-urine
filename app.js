@@ -36,13 +36,35 @@
     aggiorna();
   });
 
+  // Unisce una lista in italiano: "a", "a e b", "a, b e c".
+  function joinIt(a) {
+    if (a.length < 2) return a[0] || '';
+    return a.slice(0, -1).join(', ') + ' e ' + a[a.length - 1];
+  }
+
+  // Cause dell'oscuramento: checkbox multiple + campo "altro" → stringa unica.
+  var CAUSE_OSC = [
+    ['osc-sangue', 'sangue'],
+    ['osc-flogosi', 'flogosi'],
+    ['osc-cristalli', 'cristalli'],
+    ['osc-batteri', 'abbondante flora batterica'],
+    ['osc-conservazione', 'scarsa conservazione/citolisi'],
+    ['osc-degenerazione', 'degenerazione']
+  ];
+  function causeOscuramento() {
+    var l = CAUSE_OSC.filter(function (x) { return $(x[0]).checked; }).map(function (x) { return x[1]; });
+    var altro = $('osc-altro').value.trim();
+    if (altro) l.push(altro);
+    return joinIt(l);
+  }
+
   // ── Lettura form → input per classify ─────────────────
   function leggiInput() {
     return {
       campione: $('campione').value,
       cellularitaAdeguata: $('cellularitaAdeguata').checked,
       oscuramento: $('oscuramento').value,
-      oscuramentoCausa: $('oscuramentoCausa').value.trim(),
+      oscuramentoCausa: causeOscuramento(),
       ncRatio: $('ncRatio').value,           // i value dell'option sono già '<0.5' / '0.5-0.7' / '>=0.7'
       caratteri: {
         ipercromasia: $('car-ipercromasia').checked,
@@ -145,7 +167,8 @@
   }
 
   // ── Eventi ───────────────────────────────────────────
-  ['campione','cellularitaAdeguata','oscuramento','oscuramentoCausa','ncRatio',
+  ['campione','cellularitaAdeguata','oscuramento','ncRatio',
+   'osc-sangue','osc-flogosi','osc-cristalli','osc-batteri','osc-conservazione','osc-degenerazione','osc-altro',
    'car-ipercromasia','car-membrana','car-cromatina','nCellule',
    'rep-papillare','rep-squamose','rep-ghiandolari','rep-nonuroteliale','rep-polyoma','rep-terapia','rep-litiasi',
    'nonUrotelialeTipo'].forEach(function (id) {

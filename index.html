@@ -93,9 +93,15 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
         <option value="severo">Severi — valutazione compromessa</option>
       </select>
     </div>
-    <div class="field">
-      <label for="oscuramentoCausa">Causa dell'oscuramento (opzionale)</label>
-      <input type="text" id="oscuramentoCausa" placeholder="sangue, flogosi, scarsa conservazione/citolisi, degenerazione, abbondante flora batterica">
+    <div class="field checks">
+      <label>Causa dell'oscuramento (opzionale, anche multipla)</label>
+      <label><input type="checkbox" id="osc-sangue"> Sangue</label>
+      <label><input type="checkbox" id="osc-flogosi"> Flogosi</label>
+      <label><input type="checkbox" id="osc-cristalli"> Cristalli</label>
+      <label><input type="checkbox" id="osc-batteri"> Abbondante flora batterica</label>
+      <label><input type="checkbox" id="osc-conservazione"> Scarsa conservazione / citolisi</label>
+      <label><input type="checkbox" id="osc-degenerazione"> Degenerazione</label>
+      <input type="text" id="osc-altro" placeholder="altro (testo libero)">
     </div>
 
     <div class="field">
