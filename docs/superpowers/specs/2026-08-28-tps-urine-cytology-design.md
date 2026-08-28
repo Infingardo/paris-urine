@@ -113,24 +113,27 @@ cardine dell'HGUC), più leggibile per l'utente, più prudente come default algo
 
 ### 4.4 Logica decisionale (priorità decrescente)
 
-0. **Normalizzazione**: se `nCellule = 0` non esiste popolazione atipica: le regole 2–4
-   non si applicano, qualunque sia `ncRatio`. La UI impedisce `nCellule = 0` con `caratteri`
-   non vuoto.
+Normalizzazione: se `nCellule = 0` non esiste popolazione atipica — le regole 2–3 e 5
+non si applicano, qualunque sia `ncRatio`. La UI impedisce `nCellule = 0` con `caratteri`
+non vuoto. Enum malformati (`ncRatio`, `nCellule`, `campione`, `oscuramento` fuori dai
+valori ammessi) → `classify` lancia `RangeError` (fallimento esplicito, non silenzioso).
+
 1. **`nonUroteliale`** attivo → `ALTRE_NEOPLASIE` (primaria/secondaria, tipo a testo libero). Stop.
 2. **HGUC**: `ncRatio = >=0.7` **e** `criteriCompleti` **e** `nCellule = pariOSopraSoglia`.
 3. **SHGUC**: `ncRatio = >=0.7` **e** `criteriCompleti` **e** `nCellule = sottoSoglia`.
-4. **AUC** (richiede `nCellule` ≠ `0`):
+4. **NON_DIAGNOSTICO**: (`oscuramento = severo` **oppure** `cellularitaAdeguata = false`)
+   **e** nessuna categoria assegnata sopra (cioè non SHGUC/HGUC).
+   *L'inadeguatezza prevale su AUC / NHGUC / LGUN, ma non su SHGUC/HGUC: cellule
+   francamente maligne rendono il campione diagnostico per definizione. Un campione
+   dichiarato non valutabile non può portare un qualificatore LGUN o una categoria AUC.*
+5. **AUC** (richiede `nCellule` ≠ `0`):
    - `ncRatio = 0.5-0.7` **e** almeno un criterio ; **oppure**
    - `ncRatio = >=0.7` **e** `criteriParziali` → `AUC` + alert `"considerare SHGUC secondo giudizio se atipia marcata"` ; **oppure**
    - `ncRatio = >=0.7` **e** `criteriAssenti` → `AUC` *(default prudenziale, dichiarato nell'app)*
-5. **NHGUC + qualificatore LGUN**: `papillareFibrovascolare` attivo **e** `campione` ∈
-   `{spontanea, alteVie}` **e** nessuna categoria ≥ AUC assegnata sopra →
-   `{ categoria: "NHGUC", qualificatore: "LGUN" }`.
-   Se `campione` ∈ `{cateterismo, washing}` → **nessun** qualificatore, `promemoria`
-   "frammenti papillari attesi in campione strumentato".
-6. **Non diagnostico**: `oscuramento = severo` **oppure** `cellularitaAdeguata = false`,
-   **e** nessuna cellula da SHGUC/HGUC (regole 2–3 non soddisfatte) → `NON_DIAGNOSTICO`.
-   *(se ci sono cellule HGUC/SHGUC il campione è adeguato per definizione — regole 2–3 hanno priorità)*
+6. **NHGUC + qualificatore LGUN**: `papillareFibrovascolare` attivo **e** `campione = spontanea`
+   **e** nessuna categoria assegnata sopra → `{ categoria: "NHGUC", qualificatore: "LGUN" }`.
+   Se `campione` ∈ `{cateterismo, washing, alteVie}` (tutti strumentati) → **nessun**
+   qualificatore, `promemoria` "frammenti papillari attesi/da correlare in campione strumentato".
 7. Altrimenti → `NHGUC`.
 
 ### 4.5 Alert (nessuna azione automatica)
@@ -144,7 +147,7 @@ cardine dell'HGUC), più leggibile per l'utente, più prudente come default algo
   (per HGUC la `azioneSuggerita` resta comunque solo un suggerimento; nessun automatismo)
 - `criteriParziali` con `ncRatio = >=0.7`: alert "considerare SHGUC secondo giudizio".
 - `litiasi`: alert informativo, nessuna azione.
-- campione strumentato con `papillareFibrovascolare`: promemoria (§4.4 punto 5).
+- campione strumentato con `papillareFibrovascolare`: promemoria (§4.4 punto 6).
 
 ### 4.6 Output di `classify`
 
@@ -211,22 +214,32 @@ Nota:
 
 ### 5.2 Frasi chiave (template in `tps-data.js`)
 
-- Adeguatezza, `oscuramento = severo` + cellule HGUC/SHGUC presenti:
-  *"Campione limitato da &lt;causa&gt;, ma diagnostico per la presenza di cellule
-  fortemente atipiche."*
-- Adeguatezza, `oscuramento = severo` + nessuna atipia → categoria `NON_DIAGNOSTICO`:
-  *"Campione non valutabile per &lt;causa&gt;."*
-- Adeguatezza, `oscuramento = moderato`:
-  *"Valutazione parzialmente limitata da &lt;causa&gt;."*
+La frase di adeguatezza dipende da `cellularitaAdeguata`, `oscuramento` **e** dalla
+categoria **finale** del classificatore (`result.categoria`):
+
+- categoria `NON_DIAGNOSTICO`, con `oscuramento = severo` o `oscuramentoCausa` indicata:
+  *"Campione non valutabile per &lt;causa | 'elementi oscuranti'&gt;."*
+- categoria `NON_DIAGNOSTICO`, per sola ipocellularità (nessun oscuramento):
+  *"Campione non diagnostico per cellularità insufficiente."*
+- `oscuramento = severo` + categoria `HGUC`/`SHGUC`:
+  *"Campione limitato da &lt;causa&gt;, ma diagnostico per la presenza di cellule fortemente atipiche."*
+- `oscuramento = moderato` (categoria valutabile):
+  *"Valutabile, con limitazioni (&lt;causa&gt;)."* — mai "Adeguato".
+- altrimenti: *"Adeguato per la valutazione citologica."*
+
+Nota: dopo la regola 4, `oscuramento = severo` o `cellularitaAdeguata = false` implicano
+già `NON_DIAGNOSTICO` salvo `HGUC`/`SHGUC` — quindi le categorie `AUC`/`NHGUC`/`LGUN`
+compaiono solo con `oscuramento` ∈ `{assente-lieve, moderato}` e cellularità adeguata.
+
 - Soglia alte vie:
-  *"Per campione da alte vie è stata applicata la soglia quantitativa TPS più restrittiva."*
-- Riclassificazione manuale (`manualCategory` valorizzato) — la frase deve rendere
-  evidente che è una scelta del citopatologo, **non** un output dell'app:
-  *"Su valutazione del citopatologo, la categoria è stata riclassificata come &lt;AUC&gt;
-  per la presenza di &lt;polyomavirus/effetto terapia BCG&gt;. Il quadro morfologico di
-  partenza mostrava criteri sospetti per &lt;SHGUC&gt;."*
-  La riga compare nel blocco **Nota**, non nella riga "Categoria diagnostica", che riporta
-  direttamente la categoria scelta dal citopatologo senza prefissi tipo "riclassificata".
+  *"Per il campione da alte vie escretrici è stata applicata la soglia quantitativa TPS più restrittiva."*
+- Riclassificazione manuale (`manualCategory` valorizzato e ≠ `result.categoria`) — deve
+  risultare una scelta del citopatologo, neutra rispetto alla direzione (declassamento o
+  elevazione):
+  *"Su valutazione del citopatologo la categoria morfologica &lt;X&gt; è stata
+  riclassificata manualmente in &lt;Y&gt; per la presenza di &lt;motivo&gt;."*
+  La riga compare nel blocco **Nota**; la riga "Categoria diagnostica" riporta direttamente
+  &lt;Y&gt; senza prefissi tipo "riclassificata".
 
 ### 5.3 Riclassificazione manuale (UI)
 
@@ -248,7 +261,8 @@ manualReason:   string        // es. "polyomavirus", "effetto terapia BCG"
 
 - Descrizione citomorfologica e frasi di adeguatezza: **template + valori** da `tps-data.js`.
   Nessun testo generato liberamente.
-- Blocco **Nota**: presente solo se `alert`, `promemoria`, o riclassificazione manuale.
+- Blocco **Nota**: presente solo se almeno una tra `result.alert`, `result.promemoria`,
+  riclassificazione manuale, o `campione = alteVie` (frase soglia restrittiva).
 - Referto in `<textarea>` editabile prima dell'export.
 - Export: copia negli appunti **e** download `.txt`.
 - **Nessun** blocco ROHM, gestione clinica o disclaimer nel testo esportato.
@@ -286,10 +300,18 @@ manualReason:   string        // es. "polyomavirus", "effetto terapia BCG"
 | 13 | come #12 ma `nCellule` ≥ 10 | `HGUC`, `sogliaEffettiva = 10` |
 | 14 | `oscuramento=severo`, nessuna atipia | `NON_DIAGNOSTICO` |
 | 15 | `oscuramento=severo` ma quadro #2 | `HGUC` (adeguato per definizione) |
-| 16 | `oscuramento=moderato`, quadro normale | `NHGUC` (categoria assegnata) |
+| 16 | `oscuramento=moderato`, quadro normale | `NHGUC` (moderato non è inadeguatezza) |
 | 17 | `nonUroteliale` + tipo "adenocarcinoma" | `ALTRE_NEOPLASIE` |
 | 18 | N/C <0.5, `criteriAssenti` | `NHGUC` |
 | 19 | `AUC` (#5) + `litiasi` | `AUC` + alert informativo litiasi |
+| 20 | `oscuramento=severo` + `papillareFibrovascolare` | `NON_DIAGNOSTICO`, `qualificatore = null` (ND prevale su LGUN) |
+| 21 | `cellularitaAdeguata=false` + `papillareFibrovascolare` | `NON_DIAGNOSTICO` (ND prevale su LGUN) |
+| 22 | N/C ≥0.7 + `criteriAssenti` + `nCellule pariOSopraSoglia` | `AUC` (**non** `HGUC` — sicurezza) |
+| 23 | `campione=cateterismo` + `papillareFibrovascolare` | `NHGUC`, `qualificatore = null`, promemoria |
+| 24 | `campione=alteVie` + `papillareFibrovascolare` | `NHGUC`, `qualificatore = null`, promemoria (alte vie = strumentato) |
+| 25 | `ncRatio` / `campione` fuori enum | `classify` lancia `RangeError` |
+| 26 | `oscuramento=severo` + morfologia da AUC (N/C 0.5-0.7 + 1 criterio) | `NON_DIAGNOSTICO` (inadeguatezza prevale su AUC) |
+| — | `classify(input)` non muta `input` | oggetto invariato dopo la chiamata |
 
 ### 7.2 `buildReferto`
 
@@ -299,9 +321,12 @@ manualReason:   string        // es. "polyomavirus", "effetto terapia BCG"
 | B | `SHGUC` + `manualCategory="AUC"`, `manualReason="polyomavirus"` | categoria nel testo = AUC; presente frase di riclassificazione manuale che cita "SHGUC" |
 | C | `NHGUC` + `qualificatore="LGUN"`, `applicaLGUN=true` | contiene riga qualificatore LGUN |
 | D | `campione=alteVie` | contiene frase "soglia quantitativa TPS più restrittiva" |
-| E | categoria senza alert/promemoria/manuale | blocco "Nota:" assente |
+| E | categoria semplice `NHGUC`, campione non-alteVie, nessun alert | blocco "Nota:" assente |
 | F | `SHGUC` da `alteVie` sotto soglia (test classify #12) | referto contiene sia "SHGUC" sia la frase soglia alte vie |
-| G | `manualCategory="AUC"` | riga "Categoria diagnostica" riporta "AUC" senza la parola "riclassificata"; la frase "Su valutazione del citopatologo…" sta nel blocco Nota |
+| G | `manualCategory="AUC"` | riga sotto "Categoria diagnostica:" = "AUC" senza "riclassificata"; frase "Su valutazione del citopatologo…" nel blocco Nota |
+| H | `oscuramento=moderato`, categoria `NHGUC` | adeguatezza = "Valutabile, con limitazioni (…)"; **mai** "Adeguato per la valutazione" |
+| I | `cellularitaAdeguata=false`, nessun oscuramento | adeguatezza = "Campione non diagnostico per cellularità insufficiente"; non attribuita a elementi oscuranti |
+| J | `oscuramento=severo` + morfologia AUC + causa "sangue" | categoria `NON_DIAGNOSTICO`; adeguatezza = "Campione non valutabile per sangue" |
 
 ## 8. Rischi e limiti
 

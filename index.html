@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#0e7c7b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TPS Urine">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Citologia urinaria — Sistema di Parigi (TPS 2022)</title>
+<style>
+:root{
+  --bg:#eef2f4;--panel:#fff;--border:#d3dade;--accent:#0e7c7b;--accent-d:#0a5a59;
+  --text:#1c2529;--muted:#61707a;--chip:#e6edef;--ok:#1f7a34;--warn:#9a4a00;--danger:#a11f2e;
+  --radius:8px;
+}
+:root[data-theme="dark"]{
+  --bg:#12191c;--panel:#1b2429;--border:#33424a;--accent:#3fb6b3;--accent-d:#2b8f8c;
+  --text:#e6edf0;--muted:#9fb0b8;--chip:#243138;--ok:#5cc46f;--warn:#e0a35c;--danger:#e0707d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.55;padding:16px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+header h1{font-size:1.15rem;font-weight:650}
+.spacer{flex:1}
+button{font:inherit;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:var(--radius);padding:7px 12px}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button.primary:hover{background:var(--accent-d)}
+.wrap{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:860px){.wrap{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.panel h2{font-size:.95rem;margin-bottom:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:.9rem;margin-bottom:4px}
+.field select,.field input[type=text]{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)}
+.checks{display:flex;flex-direction:column;gap:5px}
+.checks label{font-size:.9rem;display:flex;gap:7px;align-items:flex-start}
+.hint{font-size:.8rem;color:var(--muted);margin-top:3px}
+.result-cat{font-size:1.1rem;font-weight:700;margin:4px 0 8px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:var(--chip);font-size:.8rem;margin-left:6px}
+ul.motiv{margin:6px 0 10px 18px;font-size:.9rem}
+.alert{border-left:4px solid var(--warn);background:var(--chip);padding:8px 10px;border-radius:6px;margin:8px 0;font-size:.9rem}
+.alert.confondente{border-left-color:var(--danger)}
+.alert button{margin-top:6px;font-size:.85rem}
+textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);white-space:pre-wrap}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.avvertenza{font-size:.8rem;color:var(--muted);margin-top:14px;border-top:1px solid var(--border);padding-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Citologia urinaria — Sistema di Parigi (TPS 2022)</h1>
+  <span class="spacer"></span>
+  <button id="btn-nuovo-caso">Nuovo caso</button>
+  <button id="theme-toggle" title="Tema chiaro/scuro">◑</button>
+</header>
+
+<div class="wrap">
+  <section class="panel" id="form-panel">
+    <h2>Reperti</h2>
+
+    <div class="field">
+      <label for="campione">Tipo di campione</label>
+      <select id="campione">
+        <option value="spontanea">Urina spontanea</option>
+        <option value="cateterismo">Cateterismo</option>
+        <option value="washing">Washing vescicale</option>
+        <option value="alteVie">Alte vie escretrici</option>
+      </select>
+      <div class="hint" id="hint-campione"></div>
+    </div>
+
+    <div class="field checks">
+      <label><input type="checkbox" id="cellularitaAdeguata" checked> Cellularità adeguata</label>
+    </div>
+
+    <div class="field">
+      <label for="oscuramento">Elementi oscuranti</label>
+      <select id="oscuramento">
+        <option value="assente-lieve">Assenti / lievi</option>
+        <option value="moderato">Moderati</option>
+        <option value="severo">Severi — valutazione compromessa</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="oscuramentoCausa">Causa dell'oscuramento (opzionale)</label>
+      <input type="text" id="oscuramentoCausa" placeholder="sangue, flogosi, lubrificante, degenerazione, overgrowth batterico">
+    </div>
+
+    <div class="field">
+      <label for="ncRatio">Rapporto nucleo/citoplasma (popolazione più atipica)</label>
+      <select id="ncRatio">
+        <option value="&lt;0.5">&lt; 0.5</option>
+        <option value="0.5-0.7">0.5 – 0.7</option>
+        <option value="&gt;=0.7">&ge; 0.7</option>
+      </select>
+    </div>
+
+    <div class="field checks">
+      <label>Criteri nucleari</label>
+      <label><input type="checkbox" id="car-ipercromasia"> Ipercromasia</label>
+      <label><input type="checkbox" id="car-membrana"> Membrana nucleare irregolare</label>
+      <label><input type="checkbox" id="car-cromatina"> Cromatina grossolana</label>
+      <div class="hint">Criteri completi = ipercromasia + almeno uno tra membrana e cromatina.</div>
+    </div>
+
+    <div class="field">
+      <label for="nCellule">Numero di cellule della popolazione atipica</label>
+      <select id="nCellule">
+        <option value="0">Nessuna</option>
+        <option value="sottoSoglia">1 – sotto soglia</option>
+        <option value="pariOSopraSoglia">Pari o sopra soglia</option>
+      </select>
+      <div class="hint" id="hint-soglia"></div>
+    </div>
+
+    <div class="field checks">
+      <label>Reperti accessori</label>
+      <label><input type="checkbox" id="rep-papillare"> Frammenti papillari con asse fibrovascolare</label>
+      <label><input type="checkbox" id="rep-squamose"> Cellule squamose atipiche</label>
+      <label><input type="checkbox" id="rep-ghiandolari"> Cellule ghiandolari atipiche</label>
+      <label><input type="checkbox" id="rep-nonuroteliale"> Neoplasia non uroteliale</label>
+      <label><input type="checkbox" id="rep-polyoma"> Decoy cells / polyomavirus</label>
+      <label><input type="checkbox" id="rep-terapia"> Effetto terapia (BCG / chemio / RT)</label>
+      <label><input type="checkbox" id="rep-litiasi"> Litiasi</label>
+    </div>
+    <div class="field">
+      <label for="nonUrotelialeTipo">Tipo di neoplasia non uroteliale (se applicabile)</label>
+      <input type="text" id="nonUrotelialeTipo" placeholder="es. adenocarcinoma, carcinoma squamoso, metastasi…">
+    </div>
+
+    <div class="field">
+      <label for="sogliaLabBasseVie">Soglia quantitativa HGUC — basse vie (impostazione)</label>
+      <select id="sogliaLabBasseVie">
+        <option value="5">5 cellule (default prudenziale)</option>
+        <option value="10">10 cellule</option>
+      </select>
+      <div class="hint">Per le alte vie la soglia è fissata a 10 e non modificabile.</div>
+    </div>
+  </section>
+
+  <section class="panel" id="result-panel">
+    <h2>Risultato</h2>
+    <div class="result-cat" id="risultato-categoria">—</div>
+    <ul class="motiv" id="risultato-motivazione"></ul>
+    <div id="risultato-alert"></div>
+    <div id="risultato-promemoria"></div>
+
+    <h2 style="margin-top:14px">Referto</h2>
+    <textarea id="referto" spellcheck="false"></textarea>
+    <div class="row">
+      <button class="primary" id="btn-copia">Copia negli appunti</button>
+      <button id="btn-scarica">Scarica .txt</button>
+    </div>
+
+    <p class="avvertenza">
+      Strumento di supporto alla decisione. La categoria proposta va confermata con
+      correlazione clinico-strumentale. Nessun declassamento è applicato automaticamente.
+    </p>
+  </section>
+</div>
+
+<script src="tps-data.js"></script>
+<script src="classifier.js"></script>
+<script src="referto.js"></script>
+<script src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('./sw.js')
+      .then(function (r) { console.log('SW registrato:', r.scope); })
+      .catch(function (e) { console.warn('SW errore:', e); });
+  });
+}
+</script>
+</body>
+</html>
