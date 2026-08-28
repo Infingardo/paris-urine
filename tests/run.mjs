@@ -99,6 +99,34 @@ check('output ha array promemoria', Array.isArray(rShape.promemoria));
 eq('output sogliaEffettiva', rShape.sogliaEffettiva, 5);
 eq('output qualificatore default null', rShape.qualificatore, null);
 
+section('classify — LGUN / non diagnostico / NHGUC');
+
+// 10 — LGUN qualificatore, campione non strumentato
+const r10 = classify(inp({ campione: 'spontanea', reperti: { papillareFibrovascolare: true } }));
+eq('#10 categoria NHGUC', r10.categoria, 'NHGUC');
+eq('#10 qualificatore LGUN', r10.qualificatore, 'LGUN');
+
+// 11 — frammenti papillari in campione strumentato: niente qualificatore, promemoria
+const r11 = classify(inp({ campione: 'washing', reperti: { papillareFibrovascolare: true } }));
+eq('#11 categoria NHGUC', r11.categoria, 'NHGUC');
+eq('#11 nessun qualificatore', r11.qualificatore, null);
+check('#11 promemoria presente', r11.promemoria.length > 0);
+
+// 14 — oscuramento severo, nessuna atipia → NON_DIAGNOSTICO
+eq('#14 NON_DIAGNOSTICO', classify(inp({ oscuramento: 'severo' })).categoria, 'NON_DIAGNOSTICO');
+
+// 15 — oscuramento severo ma quadro HGUC → HGUC (adeguato per definizione)
+eq('#15 HGUC nonostante oscuramento', classify(inp({
+  oscuramento: 'severo', ncRatio: '>=0.7',
+  caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'pariOSopraSoglia'
+})).categoria, 'HGUC');
+
+// 16 — oscuramento moderato, quadro normale → NHGUC (categoria comunque assegnata)
+eq('#16 NHGUC con oscuramento moderato', classify(inp({ oscuramento: 'moderato' })).categoria, 'NHGUC');
+
+// cellularità non adeguata, nessuna atipia → NON_DIAGNOSTICO
+eq('cellularità non adeguata → ND', classify(inp({ cellularitaAdeguata: false })).categoria, 'NON_DIAGNOSTICO');
+
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
 if (failures.length) { console.log('\nFallimenti:'); failures.forEach(f => console.log('  ✗ ' + f)); }
 process.exit(fail === 0 ? 0 : 1);

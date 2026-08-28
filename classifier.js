@@ -77,7 +77,29 @@
       }
     }
 
-    // Le regole 5–7 arrivano nel Task 4. Per ora: se nessuna categoria, NHGUC provvisorio.
+    // Regola 5 — NHGUC con qualificatore LGUN (solo se nessuna categoria ≥ AUC assegnata)
+    if (!out.categoria && reperti.papillareFibrovascolare) {
+      if (input.campione === 'spontanea' || input.campione === 'alteVie') {
+        out.categoria = 'NHGUC';
+        out.qualificatore = 'LGUN';
+        out.motivazione.push('Frammenti papillari con asse fibrovascolare in campione non strumentato');
+      } else {
+        out.promemoria.push('Frammenti papillari con asse fibrovascolare: reperto atteso in campione strumentato, non qualificato come LGUN.');
+      }
+    }
+
+    // Regola 6 — non diagnostico (se non ci sono cellule SHGUC/HGUC: quelle rendono il campione adeguato per definizione)
+    if (!out.categoria) {
+      var severo = input.oscuramento === 'severo';
+      if (severo || input.cellularitaAdeguata === false) {
+        out.categoria = 'NON_DIAGNOSTICO';
+        out.motivazione.push(severo
+          ? 'Valutazione compromessa da elementi oscuranti'
+          : 'Cellularità non adeguata per la valutazione');
+      }
+    }
+
+    // Regola 7 — default
     if (!out.categoria) {
       out.categoria = 'NHGUC';
       out.motivazione.push('Assenza di criteri per AUC o categoria superiore');
