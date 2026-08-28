@@ -15,6 +15,17 @@
     applicaTema(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
   });
 
+  // ── Bigino criteri TPS (pannello a comparsa) ───────────
+  var bigino = $('bigino');
+  function toggleBigino(force) {
+    var open = force != null ? force : !bigino.classList.contains('open');
+    bigino.classList.toggle('open', open);
+    bigino.setAttribute('aria-hidden', open ? 'false' : 'true');
+  }
+  $('btn-bigino').addEventListener('click', function () { toggleBigino(); });
+  $('btn-bigino-close').addEventListener('click', function () { toggleBigino(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') toggleBigino(false); });
+
   // ── Impostazione soglia (persistita) ──────────────────
   try {
     var s = localStorage.getItem(LS_SOGLIA);
