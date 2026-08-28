@@ -84,7 +84,7 @@ declassamenti. La riclassificazione manuale è responsabilità della UI (§5.3).
 | `campione` | `spontanea` \| `cateterismo` \| `washing` \| `alteVie` |
 | `cellularitaAdeguata` | `true` \| `false` |
 | `oscuramento` | `assente-lieve` \| `moderato` \| `severo` |
-| `oscuramentoCausa` | testo libero opzionale (sangue, flogosi, lubrificante, degenerazione, overgrowth batterico) |
+| `oscuramentoCausa` | testo libero opzionale (sangue, flogosi, scarsa conservazione/citolisi, degenerazione, abbondante flora batterica) |
 | `ncRatio` | `<0.5` \| `0.5-0.7` \| `>=0.7` (popolazione più atipica) |
 | `caratteri` | sottoinsieme di `{ ipercromasia, membranaIrregolare, cromatinaGrossolana }` |
 | `sogliaLabBasseVie` | `5` \| `10` — impostazione, default **5** (ignorata per `alteVie`) |
