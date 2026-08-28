@@ -46,12 +46,22 @@ ul.motiv{margin:6px 0 10px 18px;font-size:.9rem}
 textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.85rem;padding:10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);white-space:pre-wrap}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .avvertenza{font-size:.8rem;color:var(--muted);margin-top:14px;border-top:1px solid var(--border);padding-top:8px}
+.bigino{position:fixed;top:0;right:0;height:100vh;width:min(440px,92vw);background:var(--panel);border-left:1px solid var(--border);box-shadow:-4px 0 18px rgba(0,0,0,.18);padding:18px 18px 40px;overflow-y:auto;transform:translateX(102%);transition:transform .22s ease;z-index:50}
+.bigino.open{transform:none}
+.bigino h3{font-size:1rem;margin-bottom:6px;padding-right:28px}
+.bigino h4{font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:16px 0 4px}
+.bigino p{font-size:.86rem;margin-bottom:5px}
+.bigino dl{font-size:.86rem}
+.bigino dt{font-weight:650;margin-top:9px}
+.bigino dd{margin:0}
+.bigino .close{position:absolute;top:10px;right:12px;padding:3px 9px}
 </style>
 </head>
 <body>
 <header>
   <h1>Citologia urinaria — Sistema di Parigi (TPS 2022)</h1>
   <span class="spacer"></span>
+  <button id="btn-bigino">Criteri TPS</button>
   <button id="btn-nuovo-caso">Nuovo caso</button>
   <button id="theme-toggle" title="Tema chiaro/scuro">◑</button>
 </header>
@@ -83,9 +93,15 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
         <option value="severo">Severi — valutazione compromessa</option>
       </select>
     </div>
-    <div class="field">
-      <label for="oscuramentoCausa">Causa dell'oscuramento (opzionale)</label>
-      <input type="text" id="oscuramentoCausa" placeholder="sangue, flogosi, scarsa conservazione/citolisi, degenerazione, abbondante flora batterica">
+    <div class="field checks">
+      <label>Causa dell'oscuramento (opzionale, anche multipla)</label>
+      <label><input type="checkbox" id="osc-sangue"> Sangue</label>
+      <label><input type="checkbox" id="osc-flogosi"> Flogosi</label>
+      <label><input type="checkbox" id="osc-cristalli"> Cristalli</label>
+      <label><input type="checkbox" id="osc-batteri"> Abbondante flora batterica</label>
+      <label><input type="checkbox" id="osc-conservazione"> Scarsa conservazione / citolisi</label>
+      <label><input type="checkbox" id="osc-degenerazione"> Degenerazione</label>
+      <input type="text" id="osc-altro" placeholder="altro (testo libero)">
     </div>
 
     <div class="field">
@@ -160,6 +176,45 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
     </p>
   </section>
 </div>
+
+<aside class="bigino" id="bigino" aria-hidden="true">
+  <button class="close" id="btn-bigino-close" title="Chiudi">✕</button>
+  <h3>Criteri — Sistema di Parigi (TPS 2022)</h3>
+
+  <h4>Categorie</h4>
+  <dl>
+    <dt>ND — Non diagnostico</dt>
+    <dd>Campione non valutabile per oscuramento severo o cellularità insufficiente, in assenza di cellule francamente maligne.</dd>
+    <dt>NHGUC — Negativo per alto grado</dt>
+    <dd>Assenza di criteri per AUC o categoria superiore. Include quadri reattivi, litiasici, post-terapia, virali.</dd>
+    <dt>AUC — Cellule uroteliali atipiche</dt>
+    <dd>N/C ≥ 0,5 con almeno un criterio nucleare, insufficiente per SHGUC. Categoria a uso limitato.</dd>
+    <dt>SHGUC — Sospetto per alto grado</dt>
+    <dd>Criteri qualitativi completi ma poche cellule (&lt; soglia) o non pienamente sviluppati.</dd>
+    <dt>HGUC — Carcinoma uroteliale di alto grado</dt>
+    <dd>Criteri completi <b>e</b> numero di cellule ≥ soglia quantitativa.</dd>
+    <dt>Altre neoplasie</dt>
+    <dd>Cellule non uroteliali maligne (squamose, ghiandolari, piccole cellule, metastasi).</dd>
+    <dt>Qualificatore LGUN</dt>
+    <dd>Frammenti papillari con asse fibrovascolare in campione spontaneo; diagnosi definitiva istologica.</dd>
+  </dl>
+
+  <h4>Criteri nucleari (HGUC / SHGUC)</h4>
+  <p>N/C ≥ 0,7 <b>e</b> ipercromasia <b>e</b> almeno uno tra membrana nucleare irregolare / cromatina grossolana.</p>
+  <p>L'N/C alto isolato o l'ipercromasia isolata non bastano.</p>
+
+  <h4>HGUC vs SHGUC</h4>
+  <p>Stessi criteri qualitativi: la differenza è quantitativa — numero di cellule atipiche rispetto alla soglia di laboratorio (5–10, lab-dipendente).</p>
+  <p>In questa app: <b>5</b> per le basse vie (impostabile a 10), <b>10 forzato</b> per le alte vie.</p>
+
+  <h4>Adeguatezza</h4>
+  <p>TPS 2022 non impone un numero minimo di cellule: valutazione complessiva di volume, cellularità e conservazione.</p>
+  <p>Qualsiasi campione con cellule atipiche / sospette / maligne è <b>adeguato per definizione</b>.</p>
+
+  <h4>Fattori confondenti</h4>
+  <p>Polyomavirus / decoy cells ed effetto terapia (BCG, chemio, RT) mimano l'HGUC; la litiasi dà atipie reattive.</p>
+  <p>Non declassano automaticamente: generano un avviso. L'eventuale riclassificazione è scelta esplicita del citopatologo.</p>
+</aside>
 
 <script src="tps-data.js"></script>
 <script src="classifier.js"></script>
