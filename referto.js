@@ -29,12 +29,12 @@
       righe.push('Non si osservano cellule uroteliali atipiche di rilievo.');
     } else {
       var crit = frasiCaratteri(input.caratteri);
-      var critTxt = crit.length ? ', ' + join(crit) : ', senza atipie nucleari di rilievo';
-      var conteggio = input.nCellule === 'pariOSopraSoglia'
-        ? ' in numero pari o superiore alla soglia quantitativa di laboratorio (' + result.sogliaEffettiva + ' cellule)'
-        : ' in numero inferiore alla soglia quantitativa di laboratorio (' + result.sogliaEffettiva + ' cellule)';
-      righe.push('Presente popolazione di cellule uroteliali con rapporto nucleo/citoplasma ' +
-        DATA.ncLabel[input.ncRatio || '<0.5'] + critTxt + conteggio + '.');
+      righe.push('Popolazione uroteliale atipica con rapporto N/C ' +
+        DATA.ncLabel[input.ncRatio || '<0.5'] +
+        (crit.length ? '; si osservano ' + join(crit) : ' senza atipie nucleari di rilievo') + '.');
+      righe.push('Il numero di cellule atipiche è ' +
+        (input.nCellule === 'pariOSopraSoglia' ? 'pari o superiore' : 'inferiore') +
+        ' alla soglia quantitativa applicata (' + result.sogliaEffettiva + ' cellule).');
     }
     return righe.join(' ');
   }

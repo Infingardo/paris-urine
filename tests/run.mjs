@@ -286,6 +286,13 @@ const tI = buildReferto(iI, classify(iI), {});
 check('I — frase cellularità insufficiente', /Adeguatezza: Campione non diagnostico per cellularità insufficiente\./.test(tI));
 check('I — non attribuisce a elementi oscuranti', !/non valutabile per elementi oscuranti/.test(tI));
 
+// K — quadro citomorfologico: criteri e conteggio in frasi separate, N/C simbolico
+const iK = inp({ campione: 'spontanea', ncRatio: '>=0.7',
+  caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'sottoSoglia' });
+const tK = buildReferto(iK, classify(iK), {});
+check('K — frase criteri', /Popolazione uroteliale atipica con rapporto N\/C ≥ 0,7; si osservano ipercromasia e membrana nucleare irregolare\./.test(tK));
+check('K — frase conteggio separata', /Il numero di cellule atipiche è inferiore alla soglia quantitativa applicata \(5 cellule\)\./.test(tK));
+
 // J — oscuramento severo + AUC-morfologia → ND, adeguatezza dice "non valutabile per <causa>"
 const iJ = inp({ campione: 'spontanea', oscuramento: 'severo', oscuramentoCausa: 'sangue',
   ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia' });

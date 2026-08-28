@@ -20,9 +20,9 @@
       alteVie: 'campione da alte vie escretrici'
     },
     ncLabel: {
-      '<0.5': 'inferiore a 0.5',
-      '0.5-0.7': 'compreso tra 0.5 e 0.7',
-      '>=0.7': 'pari o superiore a 0.7'
+      '<0.5': '< 0,5',
+      '0.5-0.7': '0,5–0,7',
+      '>=0.7': '≥ 0,7'
     },
     criterioLabel: {
       ipercromasia: 'ipercromasia',
