@@ -37,7 +37,7 @@ paris-urine/
   index.html            struttura + CSS (tema coerente con le altre app del dominio)
   tps-data.js           dati puri: definizioni categorie, criteri, frasi di referto
   classifier.js         funzione pura classify(input) -> risultato ; shim module.exports
-  referto.js            funzione pura buildReferto(result, scelte) -> stringa ; shim module.exports
+  referto.js            funzione pura buildReferto(input, result, scelte) -> stringa ; shim module.exports
   app.js                UI: form, chiama classify()/buildReferto(), export, "Nuovo caso"
   manifest.json         id/scope = "./", start_url "./", display standalone, lang it
   sw.js                 cache-first asset, network-first HTML, CACHE = 'paris-v1'
@@ -182,10 +182,11 @@ proprio laboratorio"):**
 - `sogliaLabBasseVie` default = `5`. `alteVie` sempre 10.
 - Confondenti: solo alert, nessun declassamento automatico.
 
-## 5. Referto — `buildReferto(result, scelte)`
+## 5. Referto — `buildReferto(input, result, scelte)`
 
-Funzione pura: `buildReferto(classifyResult, { manualCategory, manualReason, applicaLGUN })`
-→ stringa. Nessun accesso al DOM.
+Funzione pura: `buildReferto(input, classifyResult, { manualCategory, manualReason, applicaLGUN })`
+→ stringa. Riceve anche `input` perché il paragrafo "Quadro citomorfologico" è
+assemblato dagli assi inseriti. Nessun accesso al DOM.
 
 ### 5.1 Struttura
 
