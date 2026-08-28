@@ -4,8 +4,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 
 const { classify } = require('../classifier.js');
-let buildReferto = null;
-try { ({ buildReferto } = require('../referto.js')); } catch { /* creato nel Task 7 */ }
+const { buildReferto } = require('../referto.js');
 
 let pass = 0, fail = 0;
 const failures = [];
@@ -180,6 +179,48 @@ section('tps-data');
 check('etichetta campione spontanea', TPS_DATA.campioneEsteso.spontanea === 'urina spontanea');
 check('frase soglia alte vie presente', typeof TPS_DATA.fraseSogliaAlteVie === 'string' && /alte vie/i.test(TPS_DATA.fraseSogliaAlteVie));
 check('frase LGUN presente', /basso grado/i.test(TPS_DATA.fraseQualificatoreLGUN));
+
+section('buildReferto');
+
+const baseInp = inp({ campione: 'spontanea' });
+
+// A — HGUC, oscuramento severo, cellule atipiche
+const iA = inp({ campione: 'spontanea', oscuramento: 'severo', oscuramentoCausa: 'flogosi',
+  ncRatio: '>=0.7', caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'pariOSopraSoglia' });
+const tA = buildReferto(iA, classify(iA), {});
+check('A — frase "ma diagnostico"', /ma diagnostico per la presenza di cellule fortemente atipiche/.test(tA));
+
+// B — SHGUC riclassificato manualmente ad AUC per polyomavirus
+const iB = inp({ campione: 'spontanea', ncRatio: '>=0.7',
+  caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'sottoSoglia', reperti: { polyoma: true } });
+const tB = buildReferto(iB, classify(iB), { manualCategory: 'AUC', manualReason: 'polyomavirus' });
+check('B — categoria nel testo è AUC', /Cellule uroteliali atipiche \(AUC\)/.test(tB));
+check('B — cita SHGUC come quadro di partenza', /sospetti per Sospetto per carcinoma uroteliale di alto grado \(SHGUC\)|criteri sospetti per .*SHGUC/.test(tB));
+
+// C — NHGUC + qualificatore LGUN
+const iC = inp({ campione: 'spontanea', reperti: { papillareFibrovascolare: true } });
+const tC = buildReferto(iC, classify(iC), { applicaLGUN: true });
+check('C — riga qualificatore LGUN', /basso grado/i.test(tC) && /Qualificatore/.test(tC));
+
+// D — campione alte vie → frase soglia restrittiva
+const iD = inp({ campione: 'alteVie', ncRatio: '>=0.7',
+  caratteri: { ipercromasia: true, cromatinaGrossolana: true }, nCellule: 'sottoSoglia' });
+const tD = buildReferto(iD, classify(iD), {});
+check('D — frase soglia alte vie', /soglia quantitativa TPS più restrittiva/.test(tD));
+
+// E — categoria semplice senza note → blocco "Nota:" assente
+const iE = inp({ campione: 'spontanea' });
+const tE = buildReferto(iE, classify(iE), {});
+check('E — nessun blocco Nota', !/\nNota:/.test(tE));
+
+// F — SHGUC da alte vie: testo contiene sia "SHGUC" sia la frase soglia
+check('F — SHGUC presente', /SHGUC/.test(tD));
+check('F — frase soglia presente', /soglia quantitativa TPS più restrittiva/.test(tD));
+
+// G — riga "Categoria diagnostica" non contiene "riclassificata"; la frase sta nella Nota
+const catLineB = tB.split('\n').find(l => /Cellule uroteliali atipiche \(AUC\)/.test(l)) || '';
+check('G — riga categoria senza "riclassificata"', !/riclassificat/i.test(catLineB));
+check('G — frase citopatologo nella Nota', /Su valutazione del citopatologo/.test(tB));
 
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
 if (failures.length) { console.log('\nFallimenti:'); failures.forEach(f => console.log('  ✗ ' + f)); }
