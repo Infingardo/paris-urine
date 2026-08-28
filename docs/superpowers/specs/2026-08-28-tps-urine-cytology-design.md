@@ -219,10 +219,13 @@ Nota:
   *"Valutazione parzialmente limitata da &lt;causa&gt;."*
 - Soglia alte vie:
   *"Per campione da alte vie è stata applicata la soglia quantitativa TPS più restrittiva."*
-- Riclassificazione manuale (`manualCategory` valorizzato):
-  *"Categoria riclassificata manualmente in &lt;AUC&gt; in presenza di
-  &lt;polyomavirus/effetto terapia&gt;; il quadro morfologico iniziale mostrava criteri
-  sospetti per &lt;SHGUC&gt;."*
+- Riclassificazione manuale (`manualCategory` valorizzato) — la frase deve rendere
+  evidente che è una scelta del citopatologo, **non** un output dell'app:
+  *"Su valutazione del citopatologo, la categoria è stata riclassificata come &lt;AUC&gt;
+  per la presenza di &lt;polyomavirus/effetto terapia BCG&gt;. Il quadro morfologico di
+  partenza mostrava criteri sospetti per &lt;SHGUC&gt;."*
+  La riga compare nel blocco **Nota**, non nella riga "Categoria diagnostica", che riporta
+  direttamente la categoria scelta dal citopatologo senza prefissi tipo "riclassificata".
 
 ### 5.3 Riclassificazione manuale (UI)
 
@@ -278,8 +281,8 @@ manualReason:   string        // es. "polyomavirus", "effetto terapia BCG"
 | 9 | #2 + `polyoma` | `HGUC` invariato + `alert` confondente |
 | 10 | `papillareFibrovascolare` + `campione=spontanea` | `NHGUC`, `qualificatore = "LGUN"` |
 | 11 | `papillareFibrovascolare` + `campione=washing` | `NHGUC`, `qualificatore = null`, promemoria |
-| 12 | `campione=alteVie` + quadro completo + `nCellule` = 6 (< 10) | `SHGUC`, `sogliaEffettiva = 10` |
-| 13 | come #12 ma `nCellule` ≥ 10 | `HGUC` |
+| 12 | `campione=alteVie` + `criteriCompleti` + `ncRatio ≥0.7` + `nCellule` fra 5 e 9 | `SHGUC` (non `HGUC`), `sogliaEffettiva = 10` |
+| 13 | come #12 ma `nCellule` ≥ 10 | `HGUC`, `sogliaEffettiva = 10` |
 | 14 | `oscuramento=severo`, nessuna atipia | `NON_DIAGNOSTICO` |
 | 15 | `oscuramento=severo` ma quadro #2 | `HGUC` (adeguato per definizione) |
 | 16 | `oscuramento=moderato`, quadro normale | `NHGUC` (categoria assegnata) |
@@ -296,6 +299,8 @@ manualReason:   string        // es. "polyomavirus", "effetto terapia BCG"
 | C | `NHGUC` + `qualificatore="LGUN"`, `applicaLGUN=true` | contiene riga qualificatore LGUN |
 | D | `campione=alteVie` | contiene frase "soglia quantitativa TPS più restrittiva" |
 | E | categoria senza alert/promemoria/manuale | blocco "Nota:" assente |
+| F | `SHGUC` da `alteVie` sotto soglia (test classify #12) | referto contiene sia "SHGUC" sia la frase soglia alte vie |
+| G | `manualCategory="AUC"` | riga "Categoria diagnostica" riporta "AUC" senza la parola "riclassificata"; la frase "Su valutazione del citopatologo…" sta nel blocco Nota |
 
 ## 8. Rischi e limiti
 
