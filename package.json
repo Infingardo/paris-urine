@@ -1,0 +1,9 @@
+{
+  "name": "paris-urine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Citologia urinaria — Sistema di Parigi (TPS 2022): categorizzazione e referto",
+  "scripts": {
+    "test": "node tests/run.mjs"
+  }
+}
