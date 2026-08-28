@@ -1,0 +1,17 @@
+{
+  "name": "Citologia urinaria — Sistema di Parigi (TPS 2022)",
+  "short_name": "TPS Urine",
+  "description": "Categorizzazione citologica secondo il Sistema di Parigi 2022 e generazione del referto",
+  "id": "./",
+  "scope": "./",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "lang": "it",
+  "background_color": "#eef2f4",
+  "theme_color": "#0e7c7b",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
