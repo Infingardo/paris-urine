@@ -286,6 +286,12 @@ const tI = buildReferto(iI, classify(iI), {});
 check('I — frase cellularità insufficiente', /Adeguatezza: Campione non diagnostico per cellularità insufficiente\./.test(tI));
 check('I — non attribuisce a elementi oscuranti', !/non valutabile per elementi oscuranti/.test(tI));
 
+// I2 — ipocellulare + causa testuale ma oscuramento non severo → resta frase cellularità
+const iI2 = inp({ campione: 'spontanea', cellularitaAdeguata: false, oscuramento: 'moderato', oscuramentoCausa: 'flogosi' });
+const tI2 = buildReferto(iI2, classify(iI2), {});
+check('I2 — la causa testuale non dirotta un ND da ipocellularità',
+  /Adeguatezza: Campione non diagnostico per cellularità insufficiente\./.test(tI2));
+
 // K — quadro citomorfologico: criteri e conteggio in frasi separate, N/C simbolico
 const iK = inp({ campione: 'spontanea', ncRatio: '>=0.7',
   caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'sottoSoglia' });
