@@ -171,6 +171,16 @@ check('#19 alert litiasi', hasAlert(r19, 'litiasi'));
 const rNoConf = classify(inp({ reperti: { polyoma: true } }));
 check('nessun alert confondente su NHGUC', !hasAlert(rNoConf, 'confondente'));
 
+const TPS_DATA = require('../tps-data.js');
+
+section('tps-data');
+['NON_DIAGNOSTICO', 'NHGUC', 'AUC', 'SHGUC', 'HGUC', 'ALTRE_NEOPLASIE'].forEach(k => {
+  check('nome esteso per ' + k, typeof TPS_DATA.categoriaEstesa[k] === 'string' && TPS_DATA.categoriaEstesa[k].length > 0);
+});
+check('etichetta campione spontanea', TPS_DATA.campioneEsteso.spontanea === 'urina spontanea');
+check('frase soglia alte vie presente', typeof TPS_DATA.fraseSogliaAlteVie === 'string' && /alte vie/i.test(TPS_DATA.fraseSogliaAlteVie));
+check('frase LGUN presente', /basso grado/i.test(TPS_DATA.fraseQualificatoreLGUN));
+
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
 if (failures.length) { console.log('\nFallimenti:'); failures.forEach(f => console.log('  ✗ ' + f)); }
 process.exit(fail === 0 ? 0 : 1);
