@@ -47,7 +47,9 @@
     var severo = input.oscuramento === 'severo';
 
     if (result.categoria === 'NON_DIAGNOSTICO') {
-      return (severo || causa)
+      // "non valutabile per oscuranti" dipende SOLO da oscuramento === 'severo':
+      // il testo libero in oscuramentoCausa non deve dirottare un ND da ipocellularità.
+      return severo
         ? DATA.fraseNonValutabilePerOscuranti(causa)
         : DATA.fraseNonDiagnosticoPerCellularita;
     }
