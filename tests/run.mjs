@@ -127,6 +127,50 @@ eq('#16 NHGUC con oscuramento moderato', classify(inp({ oscuramento: 'moderato' 
 // cellularità non adeguata, nessuna atipia → NON_DIAGNOSTICO
 eq('cellularità non adeguata → ND', classify(inp({ cellularitaAdeguata: false })).categoria, 'NON_DIAGNOSTICO');
 
+section('classify — alert confondenti, litiasi, soglia alte vie');
+
+// 8 — SHGUC + effetto terapia → SHGUC invariato + alert confondente
+const r8 = classify(inp({
+  ncRatio: '>=0.7', caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'sottoSoglia',
+  reperti: { effettoTerapia: true }
+}));
+eq('#8 categoria invariata', r8.categoria, 'SHGUC');
+check('#8 alert confondente', hasAlert(r8, 'confondente'));
+eq('#8 azioneSuggerita', r8.alert.find(a => a.tipo === 'confondente').azioneSuggerita, 'AUC');
+
+// 9 — HGUC + polyoma → HGUC invariato + alert confondente
+const r9 = classify(inp({
+  ncRatio: '>=0.7', caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'pariOSopraSoglia',
+  reperti: { polyoma: true }
+}));
+eq('#9 categoria invariata', r9.categoria, 'HGUC');
+check('#9 alert confondente', hasAlert(r9, 'confondente'));
+
+// 12 — alte vie + criteri completi + N/C >=0.7 + cellule tra 5 e 9 (sottoSoglia rispetto a 10) → SHGUC
+const r12 = classify(inp({
+  campione: 'alteVie', ncRatio: '>=0.7',
+  caratteri: { ipercromasia: true, cromatinaGrossolana: true }, nCellule: 'sottoSoglia'
+}));
+eq('#12 SHGUC (soglia alte vie)', r12.categoria, 'SHGUC');
+eq('#12 sogliaEffettiva 10', r12.sogliaEffettiva, 10);
+
+// 13 — come #12 ma cellule ≥ 10 → HGUC
+const r13 = classify(inp({
+  campione: 'alteVie', ncRatio: '>=0.7',
+  caratteri: { ipercromasia: true, cromatinaGrossolana: true }, nCellule: 'pariOSopraSoglia'
+}));
+eq('#13 HGUC', r13.categoria, 'HGUC');
+eq('#13 sogliaEffettiva 10', r13.sogliaEffettiva, 10);
+
+// 19 — AUC + litiasi → AUC + alert litiasi informativo
+const r19 = classify(inp({ ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia', reperti: { litiasi: true } }));
+eq('#19 AUC', r19.categoria, 'AUC');
+check('#19 alert litiasi', hasAlert(r19, 'litiasi'));
+
+// confondente NON deve comparire su categorie non atipiche
+const rNoConf = classify(inp({ reperti: { polyoma: true } }));
+check('nessun alert confondente su NHGUC', !hasAlert(rNoConf, 'confondente'));
+
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
 if (failures.length) { console.log('\nFallimenti:'); failures.forEach(f => console.log('  ✗ ' + f)); }
 process.exit(fail === 0 ? 0 : 1);

@@ -110,6 +110,25 @@
 
   // finalize: aggiunge gli alert che non cambiano mai la categoria (Task 5 li completa).
   function finalize(out, reperti) {
+    var atipica = out.categoria === 'AUC' || out.categoria === 'SHGUC' || out.categoria === 'HGUC';
+
+    if ((reperti.polyoma || reperti.effettoTerapia) && atipica) {
+      out.alert.push({
+        tipo: 'confondente',
+        messaggio: 'Polyomavirus/decoy cells o effetto terapia segnalati: possibile mimica di HGUC. ' +
+                   'Il confondente può coesistere con un carcinoma vero.',
+        azioneSuggerita: 'AUC'
+      });
+    }
+
+    if (reperti.litiasi) {
+      out.alert.push({
+        tipo: 'litiasi',
+        messaggio: 'Litiasi segnalata: possibili atipie reattive/degenerative da correlare.',
+        azioneSuggerita: null
+      });
+    }
+
     return out;
   }
 
