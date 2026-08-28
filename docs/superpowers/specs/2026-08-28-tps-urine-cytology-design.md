@@ -1,6 +1,6 @@
 # Citologia urinaria — Sistema di Parigi (TPS 2022)
 
-Design doc — 2026-08-28
+Design doc — 2026-08-28 (rev. 2)
 
 ## 1. Scopo
 
@@ -21,10 +21,11 @@ README, **non** nel testo di referto esportato.
 
 - **Riferimento unico**: TPS 2ª edizione (2022).
 - **Tipi di campione gestiti**: urina spontanea, cateterismo, washing vescicale, alte vie.
-  La distinzione spontanea vs strumentato modifica la logica (vedi §4).
-- **Categorie prodotte**: Non diagnostico, NHGUC, AUC, SHGUC, HGUC, LGUN, Altre neoplasie.
-- Fuori ambito: ROHM (rischio di alto grado con percentuali), raccomandazioni di
-  gestione clinica, quantificazione automatica da immagine, multilingua.
+  Spontanea vs strumentato e basse vie vs alte vie modificano la logica (vedi §4).
+- **Categorie TPS prodotte**: `NON_DIAGNOSTICO`, `NHGUC`, `AUC`, `SHGUC`, `HGUC`,
+  `ALTRE_NEOPLASIE`. **LGUN non è una categoria autonoma**: è un `qualificatore` di `NHGUC`.
+- Fuori ambito: ROHM (percentuali di rischio), raccomandazioni di gestione clinica,
+  quantificazione automatica da immagine, multilingua.
 
 ## 3. Architettura
 
@@ -35,13 +36,14 @@ Nessuna dipendenza esterna, nessun build.
 paris-urine/
   index.html            struttura + CSS (tema coerente con le altre app del dominio)
   tps-data.js           dati puri: definizioni categorie, criteri, frasi di referto
-  classifier.js         funzione pura classify(input) -> risultato ; shim module.exports per i test
-  app.js                UI: legge il form, chiama classify(), compone il referto, export, "Nuovo caso"
+  classifier.js         funzione pura classify(input) -> risultato ; shim module.exports
+  referto.js            funzione pura buildReferto(result, scelte) -> stringa ; shim module.exports
+  app.js                UI: form, chiama classify()/buildReferto(), export, "Nuovo caso"
   manifest.json         id/scope = "./", start_url "./", display standalone, lang it
   sw.js                 cache-first asset, network-first HTML, CACHE = 'paris-v1'
   icon-192.png, icon-512.png
   package.json          "test": "node tests/run.mjs"
-  tests/run.mjs         ~15 casi sul classificatore, exit code 0/1
+  tests/run.mjs         casi sul classificatore + sul referto, exit code 0/1
   README.md
 ```
 
@@ -49,10 +51,11 @@ paris-urine/
 
 - **Script classici** (non ES modules) con namespace `TPS.*`: `index.html` funziona anche
   aperto da `file://` con doppio clic. Ordine di caricamento: `tps-data.js`,
-  `classifier.js`, `app.js`.
-- `classifier.js` chiude con `if (typeof module !== 'undefined') module.exports = { classify };`
-  per l'import da node nei test. Non tocca il DOM.
-- `localStorage`: **solo** impostazioni (soglia lab, tema). Nessun dato clinico persistito.
+  `classifier.js`, `referto.js`, `app.js`.
+- `classifier.js` e `referto.js` chiudono con
+  `if (typeof module !== 'undefined') module.exports = ...` per l'import da node nei test.
+  Nessuno dei due tocca il DOM.
+- `localStorage`: **solo** impostazioni (soglia lab basse vie, tema). Nessun dato clinico.
 - Offline: `sw.js` proprio con scope `./` (schema identico a TNM). L'app funziona offline
   anche aperta direttamente, non solo dalla dashboard.
 
@@ -71,90 +74,118 @@ Aggiungere in `infingardo.github.io/index.html`, array `MEDICINA`:
 
 ## 4. Classificatore — `classify(input)`
 
+`classify` restituisce **solo la categoria morfologica** e gli alert. Non applica mai
+declassamenti. La riclassificazione manuale è responsabilità della UI (§5.3).
+
 ### 4.1 Input
 
 | Campo | Valori |
 |---|---|
 | `campione` | `spontanea` \| `cateterismo` \| `washing` \| `alteVie` |
 | `cellularitaAdeguata` | `true` \| `false` |
-| `elementiOscuranti` | `nessuno` \| `sangue` \| `flogosi` \| `lubrificante` \| `degenerazione` \| `overgrowthBatterico` |
+| `oscuramento` | `assente-lieve` \| `moderato` \| `severo` |
+| `oscuramentoCausa` | testo libero opzionale (sangue, flogosi, lubrificante, degenerazione, overgrowth batterico) |
 | `ncRatio` | `<0.5` \| `0.5-0.7` \| `>=0.7` (popolazione più atipica) |
 | `caratteri` | sottoinsieme di `{ ipercromasia, membranaIrregolare, cromatinaGrossolana }` |
-| `sogliaLab` | `5` \| `10` — impostazione, default **5** |
-| `nCellule` | `0` \| `sottoSoglia` (1 … `sogliaLab`−1) \| `pariOSopraSoglia` (≥ `sogliaLab`) — numero di cellule della **popolazione atipica** (N/C aumentato). Le etichette UI mostrano il numero concreto in base a `sogliaLab` (es. "1–4" / "≥ 5"). `caratteri` descrive se quella popolazione mostra anche caratteri nucleari. |
+| `sogliaLabBasseVie` | `5` \| `10` — impostazione, default **5** (ignorata per `alteVie`) |
+| `nCellule` | `0` \| `sottoSoglia` \| `pariOSopraSoglia` — numero di cellule della **popolazione atipica** (N/C aumentato), rispetto alla soglia effettiva (§4.3). Le etichette UI mostrano il numero concreto (es. "1–4" / "≥ 5"). |
 | `reperti` | sottoinsieme di `{ papillareFibrovascolare, squamoseAtipiche, ghiandolariAtipiche, nonUroteliale, polyoma, effettoTerapia, litiasi }` |
 | `nonUrotelialeTipo` | testo libero (se `nonUroteliale` attivo) |
-| `override` | opzionale: forza la categoria morfologica ignorando il declassamento |
 
-### 4.2 Logica decisionale (priorità decrescente)
+### 4.2 Criteri nucleari (asse qualitativo)
+
+- `criteriCompleti` = `ipercromasia && (membranaIrregolare || cromatinaGrossolana)`
+- `criteriParziali` = almeno un criterio, ma non `criteriCompleti`
+  (include il caso `membranaIrregolare && cromatinaGrossolana` **senza** ipercromasia:
+  biologicamente possibile, ma non entra nel ramo automatico HGUC/SHGUC — genera alert)
+- `criteriAssenti` = nessun criterio
+
+Motivazione della scelta: aderente alla logica TPS classica (ipercromasia come criterio
+cardine dell'HGUC), più leggibile per l'utente, più prudente come default algoritmico.
+
+### 4.3 Soglia quantitativa effettiva
+
+- `campione = alteVie` → soglia HGUC **= 10, forzata e non modificabile**
+  (atipia reattiva e artefatti da strumentazione più frequenti; specificità inferiore).
+- basse vie (`spontanea` / `cateterismo` / `washing`) → soglia = `sogliaLabBasseVie` (5 o 10, default 5).
+
+`nCellule = pariOSopraSoglia` va inteso rispetto a questa soglia effettiva.
+
+### 4.4 Logica decisionale (priorità decrescente)
 
 0. **Normalizzazione**: se `nCellule = 0` non esiste popolazione atipica: le regole 2–4
-   non si applicano, qualunque sia `ncRatio`. La UI impedisce la combinazione `nCellule = 0`
-   con `caratteri` non vuoto (non si descrivono caratteri nucleari su zero cellule atipiche).
+   non si applicano, qualunque sia `ncRatio`. La UI impedisce `nCellule = 0` con `caratteri`
+   non vuoto.
 1. **`nonUroteliale`** attivo → `ALTRE_NEOPLASIE` (primaria/secondaria, tipo a testo libero). Stop.
-2. **HGUC**: `ncRatio = >=0.7` **e** `caratteri` non vuoto **e** `nCellule = pariOSopraSoglia`.
-3. **SHGUC**: `ncRatio = >=0.7` **e** `caratteri` non vuoto **e** `nCellule = sottoSoglia`.
+2. **HGUC**: `ncRatio = >=0.7` **e** `criteriCompleti` **e** `nCellule = pariOSopraSoglia`.
+3. **SHGUC**: `ncRatio = >=0.7` **e** `criteriCompleti` **e** `nCellule = sottoSoglia`.
 4. **AUC** (richiede `nCellule` ≠ `0`):
-   - `ncRatio = 0.5-0.7` **e** `caratteri` non vuoto ; **oppure**
-   - `ncRatio = >=0.7` **e** `caratteri` vuoto  *(scelta di default prudenziale — dichiarata come tale nell'app)*
-5. **LGUN**: `papillareFibrovascolare` attivo **e** `campione` ∈ `{spontanea, alteVie}` → `LGUN`
-   (con nota: diagnosi definitiva istologica). Se `campione` ∈ `{cateterismo, washing}` →
-   **non** propone LGUN, aggiunge promemoria "frammenti papillari attesi in campione strumentato".
-6. **Non diagnostico**: (`cellularitaAdeguata = false` **oppure** `elementiOscuranti` ∈
-   `{sangue, flogosi, lubrificante, degenerazione, overgrowthBatterico}`) **e** nessuna
-   cellula da SHGUC/HGUC (regole 2–3 non soddisfatte) → `NON_DIAGNOSTICO`.
+   - `ncRatio = 0.5-0.7` **e** almeno un criterio ; **oppure**
+   - `ncRatio = >=0.7` **e** `criteriParziali` → `AUC` + alert `"considerare SHGUC secondo giudizio se atipia marcata"` ; **oppure**
+   - `ncRatio = >=0.7` **e** `criteriAssenti` → `AUC` *(default prudenziale, dichiarato nell'app)*
+5. **NHGUC + qualificatore LGUN**: `papillareFibrovascolare` attivo **e** `campione` ∈
+   `{spontanea, alteVie}` **e** nessuna categoria ≥ AUC assegnata sopra →
+   `{ categoria: "NHGUC", qualificatore: "LGUN" }`.
+   Se `campione` ∈ `{cateterismo, washing}` → **nessun** qualificatore, `promemoria`
+   "frammenti papillari attesi in campione strumentato".
+6. **Non diagnostico**: `oscuramento = severo` **oppure** `cellularitaAdeguata = false`,
+   **e** nessuna cellula da SHGUC/HGUC (regole 2–3 non soddisfatte) → `NON_DIAGNOSTICO`.
    *(se ci sono cellule HGUC/SHGUC il campione è adeguato per definizione — regole 2–3 hanno priorità)*
 7. Altrimenti → `NHGUC`.
 
-### 4.3 Declassamento per confondenti
+### 4.5 Alert (nessuna azione automatica)
 
-Applicato **dopo** il calcolo della categoria morfologica:
+`classify` popola `alert[]` con oggetti `{ tipo, messaggio, azioneSuggerita }`:
 
-- `polyoma` **oppure** `effettoTerapia` attivi:
-  - categoria morfologica `SHGUC` → proposta `AUC`
-  - categoria morfologica `AUC` → proposta `NHGUC`
-  - in entrambi i casi: `declassata = true`, `warning` esplicito, `categoriaMorfologica`
-    conservata. Il toggle `override = true` ripristina la categoria morfologica.
-- categoria morfologica `HGUC` con `polyoma`/`effettoTerapia`: **nessun** declassamento
-  automatico, ma `warning` di cautela obbligatorio.
-- `litiasi` e campione strumentato: solo `promemoria`, nessun declassamento.
+- `polyoma` **oppure** `effettoTerapia` attivi, con categoria ∈ `{AUC, SHGUC, HGUC}`:
+  `{ tipo: "confondente",
+     messaggio: "Polyomavirus/decoy cells o effetto terapia segnalati: possibile mimica di HGUC. Il confondente può coesistere con carcinoma vero.",
+     azioneSuggerita: "AUC" }`
+  (per HGUC la `azioneSuggerita` resta comunque solo un suggerimento; nessun automatismo)
+- `criteriParziali` con `ncRatio = >=0.7`: alert "considerare SHGUC secondo giudizio".
+- `litiasi`: alert informativo, nessuna azione.
+- campione strumentato con `papillareFibrovascolare`: promemoria (§4.4 punto 5).
 
-### 4.4 Output
+### 4.6 Output di `classify`
 
 ```js
 {
-  categoria: "SHGUC",              // categoria finale (dopo eventuale declassamento/override)
-  categoriaMorfologica: "SHGUC",   // prima del declassamento
-  declassata: false,
+  categoria: "SHGUC",                 // categoria morfologica; una di:
+                                      // NON_DIAGNOSTICO | NHGUC | AUC | SHGUC | HGUC | ALTRE_NEOPLASIE
+  qualificatore: null,                // null | "LGUN"
+  sogliaEffettiva: 5,                 // 5 o 10 (10 forzato se campione = alteVie)
   motivazione: [ "N/C >= 0.7", "ipercromasia + membrana irregolare",
-                 "1-4 cellule (< soglia lab 5) -> SHGUC anziche HGUC" ],
-  warning: [ "Effetto terapia BCG segnalato: considerare declassamento ad AUC" ],
+                 "3 cellule (< soglia 5) -> SHGUC anziche HGUC" ],
+  alert: [ { tipo: "confondente", messaggio: "...", azioneSuggerita: "AUC" } ],
   promemoria: []
 }
 ```
 
-`categoria` è una delle: `NON_DIAGNOSTICO`, `NHGUC`, `AUC`, `SHGUC`, `HGUC`, `LGUN`, `ALTRE_NEOPLASIE`.
-
-### 4.5 Basi TPS 2022 e scelte di default
+### 4.7 Basi TPS 2022 e scelte di default
 
 **Regole del sistema (fatti TPS 2022):**
 
-- HGUC e SHGUC richiedono entrambi `N/C >= 0.7` **più** almeno un carattere nucleare
-  (ipercromasia / membrana irregolare / cromatina grossolana). L'N/C alto da solo non basta.
-- HGUC vs SHGUC è distinzione quantitativa/qualitativa: poche cellule o caratteri
-  incompleti → SHGUC.
-- Il cutoff numerico (5–10 cellule) è deciso dal singolo laboratorio; TPS non impone un numero.
+- HGUC/SHGUC richiedono `N/C >= 0.7` **più** ipercromasia **più** almeno uno tra membrana
+  irregolare e cromatina grossolana. L'N/C alto da solo non basta; l'ipercromasia è il
+  criterio cardine.
+- HGUC vs SHGUC è distinzione quantitativa/qualitativa: poche cellule o criteri incompleti → SHGUC.
+- Il cutoff numerico (5–10) è deciso dal laboratorio; TPS non impone un numero.
 - Polyomavirus/decoy cells è il mimic classico dell'HGUC; TPS raccomanda cautela esplicita.
+- LGUN è "negative for HGUC": collocarla come qualificatore di `NHGUC` è coerente con TPS 2.0
+  e con il suo scarso valore conclusivo in citologia.
 
-**Scelte di default dell'app (modificabili, etichettate come "default prudenziale, verificare
-con il proprio laboratorio"):**
+**Scelte di default dell'app (etichettate come "default prudenziale, verificare con il
+proprio laboratorio"):**
 
-- `N/C >= 0.7` senza alcun carattere → `AUC` (non `NHGUC`).
-- `sogliaLab` default = `5` (più sensibile per l'alto grado; valore più usato negli studi
-  di validazione). Opzione `10` disponibile.
-- Declassamento confondenti come §4.3, sempre con override.
+- `N/C >= 0.7` + `criteriParziali` → `AUC` con alert (non SHGUC automatico).
+- `N/C >= 0.7` + `criteriAssenti` → `AUC` (non `NHGUC`).
+- `sogliaLabBasseVie` default = `5`. `alteVie` sempre 10.
+- Confondenti: solo alert, nessun declassamento automatico.
 
-## 5. Generatore di referto
+## 5. Referto — `buildReferto(result, scelte)`
+
+Funzione pura: `buildReferto(classifyResult, { manualCategory, manualReason, applicaLGUN })`
+→ stringa. Nessun accesso al DOM.
 
 ### 5.1 Struttura
 
@@ -165,67 +196,118 @@ Campione: <tipo campione>
 Adeguatezza: <frase dedicata, sempre presente>
 
 Quadro citomorfologico:
-  <descrizione assemblata dagli assi: cellularita, fondo, N/C, caratteri, n. cellule>
+  <descrizione assemblata dagli assi: cellularita, fondo, N/C, criteri, n. cellule>
 
 Categoria diagnostica:
   <CATEGORIA TPS in forma estesa + sigla>
+  <se qualificatore LGUN applicato: riga "Qualificatore: neoplasia uroteliale di basso
+   grado sospetta/presente — frammenti papillari con asse fibrovascolare; diagnosi
+   definitiva istologica">
 
 Nota:
-  <solo se presenti warning / promemoria / override / declassamento>
+  <solo se presenti alert / promemoria / riclassificazione manuale>
 ```
 
-### 5.2 Regole di composizione
+### 5.2 Frasi chiave (template in `tps-data.js`)
+
+- Adeguatezza, `oscuramento = severo` + cellule HGUC/SHGUC presenti:
+  *"Campione limitato da &lt;causa&gt;, ma diagnostico per la presenza di cellule
+  fortemente atipiche."*
+- Adeguatezza, `oscuramento = severo` + nessuna atipia → categoria `NON_DIAGNOSTICO`:
+  *"Campione non valutabile per &lt;causa&gt;."*
+- Adeguatezza, `oscuramento = moderato`:
+  *"Valutazione parzialmente limitata da &lt;causa&gt;."*
+- Soglia alte vie:
+  *"Per campione da alte vie è stata applicata la soglia quantitativa TPS più restrittiva."*
+- Riclassificazione manuale (`manualCategory` valorizzato):
+  *"Categoria riclassificata manualmente in &lt;AUC&gt; in presenza di
+  &lt;polyomavirus/effetto terapia&gt;; il quadro morfologico iniziale mostrava criteri
+  sospetti per &lt;SHGUC&gt;."*
+
+### 5.3 Riclassificazione manuale (UI)
+
+Lo stato manuale vive in `app.js`, non nel classificatore:
+
+```js
+manualCategory: null | "NHGUC" | "AUC" | "SHGUC" | "HGUC"
+manualReason:   string        // es. "polyomavirus", "effetto terapia BCG"
+```
+
+- Quando `classify` restituisce un `alert` di tipo `confondente`, la UI mostra l'alert ad
+  alta visibilità con un pulsante: **"Riclassifica manualmente come AUC per confondente
+  morfologico"**. Il click imposta `manualCategory`/`manualReason`.
+- `buildReferto` usa `manualCategory` se valorizzato, e aggiunge la frase §5.2 che rende
+  tracciabile la modifica e cita la categoria morfologica iniziale.
+- "Nuovo caso" azzera anche `manualCategory`/`manualReason`.
+
+### 5.4 Composizione ed export
 
 - Descrizione citomorfologica e frasi di adeguatezza: **template + valori** da `tps-data.js`.
   Nessun testo generato liberamente.
-- Blocco **Nota**: presente solo se `warning`, `promemoria`, o `declassata` non vuoti.
-  Se `declassata`, esplicita il passaggio: "categoria morfologica SHGUC declassata ad AUC
-  per <motivo>".
+- Blocco **Nota**: presente solo se `alert`, `promemoria`, o riclassificazione manuale.
 - Referto in `<textarea>` editabile prima dell'export.
 - Export: copia negli appunti **e** download `.txt`.
 - **Nessun** blocco ROHM, gestione clinica o disclaimer nel testo esportato.
 
 ## 6. UI
 
-- Colonna sinistra: form a 5 assi (§4.1) + impostazione `sogliaLab`.
-- Colonna destra: risultato (`categoria`, `motivazione`, `warning`, `promemoria`),
-  toggle override se `declassata`, referto editabile, pulsanti Copia / Scarica.
-- **"Nuovo caso"**: pulsante sempre visibile in alto; azzera form + referto + override.
+- Colonna sinistra: form (§4.1) + impostazione `sogliaLabBasseVie`.
+- Colonna destra: `categoria` (+ `qualificatore`), `motivazione`, `alert` ad alta
+  visibilità con pulsante di riclassificazione manuale, `promemoria`, referto editabile,
+  pulsanti Copia / Scarica.
+- **"Nuovo caso"**: pulsante sempre visibile in alto; azzera form, referto e stato manuale.
 - Toggle tema chiaro/scuro (persistito).
 - Avvertenza "strumento di supporto" visibile in interfaccia.
 
 ## 7. Test — `tests/run.mjs`
 
-`node tests/run.mjs` (via `npm test`). Importa `classifier.js`. Exit code 0 = tutti passano.
+`node tests/run.mjs` (via `npm test`). Importa `classifier.js` e `referto.js`. Exit code 0 = tutti passano.
 
-Casi minimi (≈15), uno per categoria + confini critici:
+### 7.1 `classify`
 
 | # | Input sintetico | Atteso |
 |---|---|---|
-| 1 | N/C ≥0.7 + ipercromasia + `nCellule 1-4` | `SHGUC` |
-| 2 | come #1 ma `nCellule >=5-10` | `HGUC` |
-| 3 | N/C 0.5-0.7 + 1 carattere | `AUC` |
-| 4 | N/C ≥0.7 + 0 caratteri + `nCellule` ≥1 | `AUC` (default) |
-| 5 | #1 + `effettoTerapia` | `AUC`, `declassata=true`, warning |
-| 6 | #5 + `override=true` | `SHGUC`, `declassata=false` |
-| 7 | #2 + `polyoma` | `HGUC`, warning cautela, non declassata |
-| 8 | `papillareFibrovascolare` + `campione=spontanea` | `LGUN` |
-| 9 | `papillareFibrovascolare` + `campione=washing` | non `LGUN` (→ `NHGUC`), promemoria |
-| 10 | `cellularitaAdeguata=false`, nessuna atipia | `NON_DIAGNOSTICO` |
-| 11 | `cellularitaAdeguata=false` ma quadro #2 | `HGUC` (adeguato per definizione) |
-| 12 | `nonUroteliale` + tipo "adenocarcinoma" | `ALTRE_NEOPLASIE` |
-| 13 | quadro normale, N/C <0.5, 0 caratteri | `NHGUC` |
-| 14 | N/C ≥0.7, `nCellule = 0` (nessuna popolazione atipica) | `NHGUC` (regola 0) |
-| 15 | AUC (#3) + `litiasi` | `AUC`, promemoria, non declassata |
+| 1 | N/C ≥0.7 + ipercromasia + membrana irreg. + `nCellule sottoSoglia` | `SHGUC` |
+| 2 | come #1 ma `nCellule pariOSopraSoglia` | `HGUC` |
+| 3 | N/C ≥0.7 + solo ipercromasia (`criteriParziali`) + `nCellule pariOSopraSoglia` | `AUC` + alert "considerare SHGUC" |
+| 4 | N/C ≥0.7 + membrana irreg. + cromatina grossolana, **no** ipercromasia | `AUC` + alert |
+| 5 | N/C 0.5-0.7 + 1 criterio | `AUC` |
+| 6 | N/C ≥0.7 + `criteriAssenti` + `nCellule ≥1` | `AUC` (default) |
+| 7 | N/C ≥0.7, `nCellule = 0` | `NHGUC` (regola 0) |
+| 8 | #1 + `effettoTerapia` | `SHGUC` invariato + `alert` confondente con `azioneSuggerita: "AUC"` |
+| 9 | #2 + `polyoma` | `HGUC` invariato + `alert` confondente |
+| 10 | `papillareFibrovascolare` + `campione=spontanea` | `NHGUC`, `qualificatore = "LGUN"` |
+| 11 | `papillareFibrovascolare` + `campione=washing` | `NHGUC`, `qualificatore = null`, promemoria |
+| 12 | `campione=alteVie` + quadro completo + `nCellule` = 6 (< 10) | `SHGUC`, `sogliaEffettiva = 10` |
+| 13 | come #12 ma `nCellule` ≥ 10 | `HGUC` |
+| 14 | `oscuramento=severo`, nessuna atipia | `NON_DIAGNOSTICO` |
+| 15 | `oscuramento=severo` ma quadro #2 | `HGUC` (adeguato per definizione) |
+| 16 | `oscuramento=moderato`, quadro normale | `NHGUC` (categoria assegnata) |
+| 17 | `nonUroteliale` + tipo "adenocarcinoma" | `ALTRE_NEOPLASIE` |
+| 18 | N/C <0.5, `criteriAssenti` | `NHGUC` |
+| 19 | `AUC` (#5) + `litiasi` | `AUC` + alert informativo litiasi |
+
+### 7.2 `buildReferto`
+
+| # | Scenario | Verifica |
+|---|---|---|
+| A | `HGUC`, oscuramento severo, cellule atipiche | contiene "diagnostico per la presenza di cellule fortemente atipiche" |
+| B | `SHGUC` + `manualCategory="AUC"`, `manualReason="polyomavirus"` | categoria nel testo = AUC; presente frase di riclassificazione manuale che cita "SHGUC" |
+| C | `NHGUC` + `qualificatore="LGUN"`, `applicaLGUN=true` | contiene riga qualificatore LGUN |
+| D | `campione=alteVie` | contiene frase "soglia quantitativa TPS più restrittiva" |
+| E | categoria senza alert/promemoria/manuale | blocco "Nota:" assente |
 
 ## 8. Rischi e limiti
 
-- **Errore ad alto costo**: l'app propone una categoria diagnostica. Mitigazioni: funzione
-  pura testata, override sempre disponibile, referto editabile a mano, scelte di default
-  dichiarate come prudenziali e non vincolanti.
-- L'utente dichiara di non essere esperto di TPS: i default sono impostati sul lato
-  conservativo (declassamento attivo, soglia sensibile) e ogni scelta non-di-sistema è
-  etichettata.
-- La granularità dell'input (3 livelli di N/C, 3 fasce di conteggio) è una
-  semplificazione dell'esame reale: accettata per l'uso previsto (supporto, non sostituzione).
-- LGUN da citologia è raramente conclusiva: l'app lo esplicita nella nota.
+- **Errore ad alto costo**: l'app propone una categoria diagnostica. Mitigazioni: funzioni
+  pure testate, nessun declassamento automatico, referto editabile a mano, scelte di
+  default dichiarate come prudenziali e non vincolanti, riclassificazione manuale tracciata.
+- L'utente dichiara di non essere esperto di TPS: i default sono sul lato prudente
+  (criteri completi con ipercromasia obbligatoria, soglia sensibile per basse vie, soglia
+  restrittiva forzata per alte vie).
+- La granularità dell'input (3 livelli di N/C, 3 fasce di conteggio, 3 livelli di
+  oscuramento) è una semplificazione: accettata per l'uso previsto (supporto, non sostituzione).
+- LGUN da citologia è raramente conclusiva: resa come qualificatore di `NHGUC` con nota
+  esplicita sul limite.
+- I confondenti (polyoma, terapia) possono **coesistere** con carcinoma: l'app lo segnala
+  esplicitamente e non declassa mai da sola.
