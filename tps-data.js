@@ -31,24 +31,25 @@
     },
     // Adeguatezza
     fraseAdeguato: 'Adeguato per la valutazione citologica.',
-    fraseNonValutabile: function (causa) {
+    fraseNonValutabilePerOscuranti: function (causa) {
       return 'Campione non valutabile' + (causa ? ' per ' + causa : ' per elementi oscuranti') + '.';
     },
+    fraseNonDiagnosticoPerCellularita: 'Campione non diagnostico per cellularità insufficiente.',
     fraseLimitatoMaDiagnostico: function (causa) {
       return 'Campione limitato da ' + (causa || 'elementi oscuranti') +
         ', ma diagnostico per la presenza di cellule fortemente atipiche.';
     },
-    fraseParzialmenteLimitato: function (causa) {
-      return 'Valutazione parzialmente limitata da ' + (causa || 'elementi oscuranti') + '.';
+    fraseValutabileConLimitazioni: function (causa) {
+      return 'Valutabile, con limitazioni' + (causa ? ' (' + causa + ')' : '') + '.';
     },
     // Note
     fraseSogliaAlteVie: 'Per il campione da alte vie escretrici è stata applicata la soglia quantitativa TPS più restrittiva.',
     fraseQualificatoreLGUN: 'Qualificatore: quadro compatibile con neoplasia uroteliale papillare di basso grado ' +
       '(frammenti papillari con asse fibrovascolare); la diagnosi definitiva è istologica.',
-    fraseRiclassificaManuale: function (manualEstesa, motivo, morfologicaEstesa) {
-      return 'Su valutazione del citopatologo, la categoria è stata riclassificata come ' + manualEstesa +
-        ' per la presenza di ' + (motivo || 'confondente morfologico') +
-        '. Il quadro morfologico di partenza mostrava criteri sospetti per ' + morfologicaEstesa + '.';
+    fraseRiclassificaManuale: function (morfologicaEstesa, sceltaEstesa, motivo) {
+      return 'Su valutazione del citopatologo la categoria morfologica ' + morfologicaEstesa +
+        ' è stata riclassificata manualmente in ' + sceltaEstesa +
+        (motivo ? ' per la presenza di ' + motivo : '') + '.';
     }
   };
 

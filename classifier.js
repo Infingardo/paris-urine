@@ -3,6 +3,25 @@
 
   var CATEGORIE = ['NON_DIAGNOSTICO', 'NHGUC', 'AUC', 'SHGUC', 'HGUC', 'ALTRE_NEOPLASIE'];
 
+  var NC_VALIDI = { '<0.5': 1, '0.5-0.7': 1, '>=0.7': 1 };
+  var NCEL_VALIDI = { '0': 1, sottoSoglia: 1, pariOSopraSoglia: 1 };
+  var CAMPIONI_VALIDI = { spontanea: 1, cateterismo: 1, washing: 1, alteVie: 1 };
+  var OSCURAMENTO_VALIDI = { 'assente-lieve': 1, moderato: 1, severo: 1 };
+
+  // Rifiuta esplicitamente enum malformati: meglio un errore visibile che una
+  // classificazione silenziosa verso la categoria più benigna. I campi assenti
+  // (null/undefined) restano ammessi e ricadono sui default.
+  function validaInput(input) {
+    if (input.ncRatio != null && !NC_VALIDI[input.ncRatio])
+      throw new RangeError('ncRatio non valido: ' + JSON.stringify(input.ncRatio));
+    if (input.nCellule != null && !NCEL_VALIDI[input.nCellule])
+      throw new RangeError('nCellule non valido: ' + JSON.stringify(input.nCellule));
+    if (input.campione != null && !CAMPIONI_VALIDI[input.campione])
+      throw new RangeError('campione non valido: ' + JSON.stringify(input.campione));
+    if (input.oscuramento != null && !OSCURAMENTO_VALIDI[input.oscuramento])
+      throw new RangeError('oscuramento non valido: ' + JSON.stringify(input.oscuramento));
+  }
+
   // 'assenti' | 'parziali' | 'completi'
   // completi = ipercromasia OBBLIGATORIA + almeno uno tra membrana irregolare / cromatina grossolana
   function criteriLevel(caratteri) {
@@ -19,11 +38,13 @@
   function sogliaEffettiva(input) {
     input = input || {};
     if (input.campione === 'alteVie') return 10;
-    return input.sogliaLabBasseVie === 10 ? 10 : 5;
+    return Number(input.sogliaLabBasseVie) === 10 ? 10 : 5;
   }
 
   function classify(input) {
     input = input || {};
+    validaInput(input);
+
     var caratteri = input.caratteri || {};
     var reperti = input.reperti || {};
     var crit = criteriLevel(caratteri);
@@ -48,19 +69,39 @@
       return finalize(out, reperti);
     }
 
-    // Regola 0 — senza popolazione atipica, le regole 2–4 non si applicano
+    // Senza popolazione atipica (nCellule = 0) i rami di alto grado e AUC non si applicano.
     var popolazioneAtipica = nCel !== '0';
 
-    if (popolazioneAtipica) {
-      if (nc === '>=0.7' && crit === 'completi' && nCel === 'pariOSopraSoglia') {
+    // Regole 2–3 — carcinoma uroteliale di alto grado. Richiedono N/C ≥ 0.7 + criteri completi.
+    if (popolazioneAtipica && nc === '>=0.7' && crit === 'completi') {
+      if (nCel === 'pariOSopraSoglia') {
         out.categoria = 'HGUC';
         out.motivazione.push('N/C ≥ 0.7', 'ipercromasia + (membrana irregolare o cromatina grossolana)',
           'cellule atipiche in numero pari o superiore alla soglia (' + soglia + ')');
-      } else if (nc === '>=0.7' && crit === 'completi' && nCel === 'sottoSoglia') {
+      } else {
         out.categoria = 'SHGUC';
         out.motivazione.push('N/C ≥ 0.7', 'criteri nucleari completi',
           'cellule atipiche in numero inferiore alla soglia (' + soglia + ') → SHGUC anziché HGUC');
-      } else if (nc === '0.5-0.7' && crit !== 'assenti') {
+      }
+    }
+
+    // Regola 4 — non diagnostico: l'inadeguatezza (oscuramento severo o cellularità
+    // insufficiente) prevale su AUC / NHGUC / LGUN, ma NON su SHGUC/HGUC — cellule
+    // francamente maligne rendono il campione diagnostico per definizione.
+    if (!out.categoria) {
+      var severo = input.oscuramento === 'severo';
+      var ipocellulare = input.cellularitaAdeguata === false;
+      if (severo || ipocellulare) {
+        out.categoria = 'NON_DIAGNOSTICO';
+        out.motivazione.push(severo
+          ? 'Valutazione compromessa da elementi oscuranti'
+          : 'Cellularità insufficiente per la valutazione');
+      }
+    }
+
+    // Regola 5 — cellule uroteliali atipiche (AUC). Richiede popolazione atipica.
+    if (!out.categoria && popolazioneAtipica) {
+      if (nc === '0.5-0.7' && crit !== 'assenti') {
         out.categoria = 'AUC';
         out.motivazione.push('N/C 0.5–0.7 con almeno un criterio nucleare');
       } else if (nc === '>=0.7' && crit === 'parziali') {
@@ -77,25 +118,16 @@
       }
     }
 
-    // Regola 5 — NHGUC con qualificatore LGUN (solo se nessuna categoria ≥ AUC assegnata)
+    // Regola 6 — NHGUC con qualificatore LGUN. Solo campione spontaneo: nei campioni
+    // strumentati (cateterismo, washing, alte vie) i frammenti papillari sono attesi
+    // o artefattuali → promemoria descrittivo, non qualificatore diagnostico.
     if (!out.categoria && reperti.papillareFibrovascolare) {
-      if (input.campione === 'spontanea' || input.campione === 'alteVie') {
+      if (input.campione === 'spontanea') {
         out.categoria = 'NHGUC';
         out.qualificatore = 'LGUN';
-        out.motivazione.push('Frammenti papillari con asse fibrovascolare in campione non strumentato');
+        out.motivazione.push('Frammenti papillari con asse fibrovascolare in campione spontaneo');
       } else {
-        out.promemoria.push('Frammenti papillari con asse fibrovascolare: reperto atteso in campione strumentato, non qualificato come LGUN.');
-      }
-    }
-
-    // Regola 6 — non diagnostico (se non ci sono cellule SHGUC/HGUC: quelle rendono il campione adeguato per definizione)
-    if (!out.categoria) {
-      var severo = input.oscuramento === 'severo';
-      if (severo || input.cellularitaAdeguata === false) {
-        out.categoria = 'NON_DIAGNOSTICO';
-        out.motivazione.push(severo
-          ? 'Valutazione compromessa da elementi oscuranti'
-          : 'Cellularità non adeguata per la valutazione');
+        out.promemoria.push('Frammenti papillari con asse fibrovascolare: reperto atteso o da correlare in campione strumentato, non qualificato come LGUN.');
       }
     }
 
@@ -108,7 +140,7 @@
     return finalize(out, reperti);
   }
 
-  // finalize: aggiunge gli alert che non cambiano mai la categoria (Task 5 li completa).
+  // finalize: aggiunge SOLO alert — non modifica mai la categoria.
   function finalize(out, reperti) {
     var atipica = out.categoria === 'AUC' || out.categoria === 'SHGUC' || out.categoria === 'HGUC';
 

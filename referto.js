@@ -39,13 +39,22 @@
     return righe.join(' ');
   }
 
-  function fraseAdeguatezza(input, result, categoriaEffettiva) {
+  // Dipende da cellularità, oscuramento e categoria FINALE del classificatore.
+  // Dopo la regola 4, un campione severamente oscurato o ipocellulare è già
+  // NON_DIAGNOSTICO salvo cellule SHGUC/HGUC: qui distinguiamo solo la formulazione.
+  function fraseAdeguatezza(input, result) {
     var causa = input.oscuramentoCausa || '';
-    if (categoriaEffettiva === 'NON_DIAGNOSTICO') return DATA.fraseNonValutabile(causa);
-    if (input.oscuramento === 'severo' && (result.categoria === 'HGUC' || result.categoria === 'SHGUC')) {
+    var severo = input.oscuramento === 'severo';
+
+    if (result.categoria === 'NON_DIAGNOSTICO') {
+      return (severo || causa)
+        ? DATA.fraseNonValutabilePerOscuranti(causa)
+        : DATA.fraseNonDiagnosticoPerCellularita;
+    }
+    if (severo && (result.categoria === 'HGUC' || result.categoria === 'SHGUC')) {
       return DATA.fraseLimitatoMaDiagnostico(causa);
     }
-    if (input.oscuramento === 'moderato') return DATA.fraseParzialmenteLimitato(causa);
+    if (input.oscuramento === 'moderato') return DATA.fraseValutabileConLimitazioni(causa);
     return DATA.fraseAdeguato;
   }
 
@@ -59,7 +68,7 @@
     L.push('CITOLOGIA URINARIA — Sistema di Parigi (TPS 2022)');
     L.push('');
     L.push('Campione: ' + (DATA.campioneEsteso[input.campione] || '—'));
-    L.push('Adeguatezza: ' + fraseAdeguatezza(input, result, categoriaEffettiva));
+    L.push('Adeguatezza: ' + fraseAdeguatezza(input, result));
     L.push('');
     L.push('Quadro citomorfologico:');
     L.push('  ' + paragrafoCitomorfologico(input, result));
@@ -78,11 +87,11 @@
     var note = [];
     (result.promemoria || []).forEach(function (p) { note.push(p); });
     (result.alert || []).forEach(function (a) { note.push(a.messaggio); });
-    if (manual) {
+    if (manual && manual !== result.categoria) {
       note.push(DATA.fraseRiclassificaManuale(
+        DATA.categoriaEstesa[result.categoria] || result.categoria,
         DATA.categoriaEstesa[manual] || manual,
-        scelte.manualReason,
-        DATA.categoriaEstesa[result.categoria] || result.categoria));
+        scelte.manualReason));
     }
     if (input.campione === 'alteVie') note.push(DATA.fraseSogliaAlteVie);
 

@@ -35,6 +35,7 @@ section('sogliaEffettiva');
 eq('alte vie → 10 forzata', sogliaEffettiva({ campione: 'alteVie', sogliaLabBasseVie: 5 }), 10);
 eq('basse vie default → 5', sogliaEffettiva({ campione: 'spontanea' }), 5);
 eq('basse vie impostata a 10 → 10', sogliaEffettiva({ campione: 'washing', sogliaLabBasseVie: 10 }), 10);
+eq('soglia come stringa "10" → 10', sogliaEffettiva({ campione: 'washing', sogliaLabBasseVie: '10' }), 10);
 
 // scorciatoia per costruire input completi con default sensati
 function inp(over = {}) {
@@ -120,11 +121,57 @@ eq('#15 HGUC nonostante oscuramento', classify(inp({
   caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'pariOSopraSoglia'
 })).categoria, 'HGUC');
 
-// 16 — oscuramento moderato, quadro normale → NHGUC (categoria comunque assegnata)
+// 16 — oscuramento moderato, quadro normale → NHGUC (moderato non è inadeguatezza)
 eq('#16 NHGUC con oscuramento moderato', classify(inp({ oscuramento: 'moderato' })).categoria, 'NHGUC');
 
 // cellularità non adeguata, nessuna atipia → NON_DIAGNOSTICO
 eq('cellularità non adeguata → ND', classify(inp({ cellularitaAdeguata: false })).categoria, 'NON_DIAGNOSTICO');
+
+// 20 — oscuramento severo + frammenti papillari → NON_DIAGNOSTICO ha precedenza su LGUN
+const r20 = classify(inp({ oscuramento: 'severo', reperti: { papillareFibrovascolare: true } }));
+eq('#20 ND prevale su LGUN (oscuramento severo)', r20.categoria, 'NON_DIAGNOSTICO');
+eq('#20 nessun qualificatore', r20.qualificatore, null);
+
+// 21 — cellularità insufficiente + frammenti papillari → NON_DIAGNOSTICO ha precedenza
+eq('#21 ND prevale su LGUN (ipocellulare)',
+  classify(inp({ cellularitaAdeguata: false, reperti: { papillareFibrovascolare: true } })).categoria, 'NON_DIAGNOSTICO');
+
+// 22 — SICUREZZA: N/C ≥ 0.7 + criteriAssenti + pariOSopraSoglia NON deve diventare HGUC
+eq('#22 criteriAssenti + molte cellule → AUC (non HGUC)',
+  classify(inp({ ncRatio: '>=0.7', caratteri: {}, nCellule: 'pariOSopraSoglia' })).categoria, 'AUC');
+
+// 23 — cateterismo + frammenti papillari → promemoria, nessun qualificatore
+const r23 = classify(inp({ campione: 'cateterismo', reperti: { papillareFibrovascolare: true } }));
+eq('#23 NHGUC', r23.categoria, 'NHGUC');
+eq('#23 nessun qualificatore', r23.qualificatore, null);
+check('#23 promemoria presente', r23.promemoria.length > 0);
+
+// 24 — alte vie + frammenti papillari → strumentato: promemoria, nessun qualificatore
+const r24 = classify(inp({ campione: 'alteVie', reperti: { papillareFibrovascolare: true } }));
+eq('#24 NHGUC', r24.categoria, 'NHGUC');
+eq('#24 nessun qualificatore (alte vie = strumentato)', r24.qualificatore, null);
+check('#24 promemoria presente', r24.promemoria.length > 0);
+
+// 25 — enum malformato → errore esplicito, non classificazione silenziosa
+check('#25 ncRatio malformato lancia RangeError', (() => {
+  try { classify(inp({ ncRatio: '0.7' })); return false; }
+  catch (e) { return e instanceof RangeError; }
+})());
+check('#25 campione malformato lancia RangeError', (() => {
+  try { classify(inp({ campione: 'vescica' })); return false; }
+  catch (e) { return e instanceof RangeError; }
+})());
+
+// 26 — reorder: oscuramento severo + morfologia da AUC → NON_DIAGNOSTICO (inadeguatezza prevale su AUC)
+eq('#26 severo + morfologia AUC → ND',
+  classify(inp({ oscuramento: 'severo', ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia' })).categoria,
+  'NON_DIAGNOSTICO');
+
+// purezza: classify non muta l'input
+const inMut = inp({ ncRatio: '>=0.7', caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'sottoSoglia' });
+const snap = JSON.stringify(inMut);
+classify(inMut);
+eq('classify non muta l’input', JSON.stringify(inMut), snap);
 
 section('classify — alert confondenti, litiasi, soglia alte vie');
 
@@ -179,6 +226,8 @@ section('tps-data');
 check('etichetta campione spontanea', TPS_DATA.campioneEsteso.spontanea === 'urina spontanea');
 check('frase soglia alte vie presente', typeof TPS_DATA.fraseSogliaAlteVie === 'string' && /alte vie/i.test(TPS_DATA.fraseSogliaAlteVie));
 check('frase LGUN presente', /basso grado/i.test(TPS_DATA.fraseQualificatoreLGUN));
+check('frase cellularità insufficiente presente', /cellularità insufficiente/i.test(TPS_DATA.fraseNonDiagnosticoPerCellularita));
+check('frase "valutabile con limitazioni" presente', /valutabile, con limitazioni/i.test(TPS_DATA.fraseValutabileConLimitazioni('sangue')));
 
 section('buildReferto');
 
@@ -194,8 +243,12 @@ check('A — frase "ma diagnostico"', /ma diagnostico per la presenza di cellule
 const iB = inp({ campione: 'spontanea', ncRatio: '>=0.7',
   caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'sottoSoglia', reperti: { polyoma: true } });
 const tB = buildReferto(iB, classify(iB), { manualCategory: 'AUC', manualReason: 'polyomavirus' });
-check('B — categoria nel testo è AUC', /Cellule uroteliali atipiche \(AUC\)/.test(tB));
-check('B — cita SHGUC come quadro di partenza', /sospetti per Sospetto per carcinoma uroteliale di alto grado \(SHGUC\)|criteri sospetti per .*SHGUC/.test(tB));
+const righeB = tB.split('\n');
+const idxCatB = righeB.findIndex(l => l.trim() === 'Categoria diagnostica:');
+eq('B — riga sotto "Categoria diagnostica:" = AUC', righeB[idxCatB + 1].trim(), 'Cellule uroteliali atipiche (AUC)');
+check('B — Nota: riclassificazione manuale morfologica SHGUC → AUC',
+  /riclassificata manualmente in Cellule uroteliali atipiche \(AUC\)/.test(tB) &&
+  /categoria morfologica Sospetto per carcinoma uroteliale di alto grado \(SHGUC\)/.test(tB));
 
 // C — NHGUC + qualificatore LGUN
 const iC = inp({ campione: 'spontanea', reperti: { papillareFibrovascolare: true } });
@@ -217,10 +270,28 @@ check('E — nessun blocco Nota', !/\nNota:/.test(tE));
 check('F — SHGUC presente', /SHGUC/.test(tD));
 check('F — frase soglia presente', /soglia quantitativa TPS più restrittiva/.test(tD));
 
-// G — riga "Categoria diagnostica" non contiene "riclassificata"; la frase sta nella Nota
-const catLineB = tB.split('\n').find(l => /Cellule uroteliali atipiche \(AUC\)/.test(l)) || '';
-check('G — riga categoria senza "riclassificata"', !/riclassificat/i.test(catLineB));
+// G — la riga "Categoria diagnostica" mostra la scelta senza "riclassificata"; la frase sta nella Nota
+check('G — riga categoria senza "riclassificata"', !/riclassificat/i.test(righeB[idxCatB + 1]));
 check('G — frase citopatologo nella Nota', /Su valutazione del citopatologo/.test(tB));
+
+// H — oscuramento moderato + categoria NHGUC → "Valutabile, con limitazioni", mai "Adeguato"
+const iH = inp({ campione: 'spontanea', oscuramento: 'moderato', oscuramentoCausa: 'flogosi' });
+const tH = buildReferto(iH, classify(iH), {});
+check('H — frase "Valutabile, con limitazioni"', /Adeguatezza: Valutabile, con limitazioni \(flogosi\)\./.test(tH));
+check('H — non dice "Adeguato per la valutazione"', !/Adeguato per la valutazione/.test(tH));
+
+// I — ipocellulare senza oscuranti → "non diagnostico per cellularità insufficiente"
+const iI = inp({ campione: 'spontanea', cellularitaAdeguata: false });
+const tI = buildReferto(iI, classify(iI), {});
+check('I — frase cellularità insufficiente', /Adeguatezza: Campione non diagnostico per cellularità insufficiente\./.test(tI));
+check('I — non attribuisce a elementi oscuranti', !/non valutabile per elementi oscuranti/.test(tI));
+
+// J — oscuramento severo + AUC-morfologia → ND, adeguatezza dice "non valutabile per <causa>"
+const iJ = inp({ campione: 'spontanea', oscuramento: 'severo', oscuramentoCausa: 'sangue',
+  ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia' });
+const tJ = buildReferto(iJ, classify(iJ), {});
+check('J — categoria ND nel testo', /Non diagnostico \/ insoddisfacente/.test(tJ));
+check('J — adeguatezza "non valutabile per sangue"', /Adeguatezza: Campione non valutabile per sangue\./.test(tJ));
 
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
 if (failures.length) { console.log('\nFallimenti:'); failures.forEach(f => console.log('  ✗ ' + f)); }
