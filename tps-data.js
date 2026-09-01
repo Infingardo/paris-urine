@@ -3,7 +3,7 @@
 
   var TPS_DATA = {
     categoriaEstesa: {
-      NON_DIAGNOSTICO: 'Non diagnostico / insoddisfacente per la valutazione (ND)',
+      NON_DIAGNOSTICO: 'Non diagnostico/inadeguato (ND)',
       NHGUC: 'Negativo per carcinoma uroteliale di alto grado (NHGUC)',
       AUC: 'Cellule uroteliali atipiche (AUC)',
       SHGUC: 'Sospetto per carcinoma uroteliale di alto grado (SHGUC)',
@@ -29,8 +29,9 @@
       membranaIrregolare: 'membrana nucleare irregolare',
       cromatinaGrossolana: 'cromatina grossolana'
     },
+    // Formula fissa di chiusura della categoria diagnostica (stile referto interno).
+    fraseSecondoTPS: 'secondo The Paris System (TPS) 2022.',
     // Adeguatezza
-    fraseAdeguato: 'Adeguato per la valutazione citologica.',
     fraseNonValutabilePerOscuranti: function (causa) {
       return 'Campione non valutabile' + (causa ? ' per ' + causa : ' per elementi oscuranti') + '.';
     },
