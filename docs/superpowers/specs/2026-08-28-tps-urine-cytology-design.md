@@ -193,29 +193,39 @@ assemblato dagli assi inseriti. Nessun accesso al DOM.
 
 ### 5.1 Struttura
 
+Allineata (2026-09-01) allo stile reale di reparto, verificato su referti effettivi
+invece che su un'ipotesi di formato "a moduli": paragrafo narrativo, poi la riga
+categoriale fissa, poi la Nota solo se c'è qualcosa da dire. Nessuna etichetta
+`Campione:` / `Adeguatezza:` / `Quadro citomorfologico:` / `Categoria diagnostica:` —
+il reparto non le scrive, e produrle avrebbe reso il testo da editare più lontano dal
+referto finale, non più vicino.
+
 ```
-CITOLOGIA URINARIA — Sistema di Parigi (TPS 2022)
+<frase di adeguatezza, solo se c'è una limitazione da dichiarare> <quadro citomorfologico>
 
-Campione: <tipo campione>
-Adeguatezza: <frase dedicata, sempre presente>
-
-Quadro citomorfologico:
-  <descrizione assemblata dagli assi: cellularita, fondo, N/C, criteri, n. cellule>
-
-Categoria diagnostica:
-  <CATEGORIA TPS in forma estesa + sigla>
-  <se qualificatore LGUN applicato: riga "Qualificatore: neoplasia uroteliale di basso
-   grado sospetta/presente — frammenti papillari con asse fibrovascolare; diagnosi
-   definitiva istologica">
+<CATEGORIA TPS IN FORMA ESTESA (SIGLA)> secondo The Paris System (TPS) 2022.
+<se qualificatore LGUN applicato: riga "Qualificatore: neoplasia uroteliale di basso
+ grado sospetta/presente — frammenti papillari con asse fibrovascolare; diagnosi
+ definitiva istologica">
 
 Nota:
   <solo se presenti alert / promemoria / riclassificazione manuale>
 ```
 
+Decisione di reparto (2026-09-01, confermata dall'utente su due varianti realmente in
+uso — vedi §5.2.1): riga categoriale in **Formato A** — sigla inline, "The Paris System
+(TPS)" abbreviato, edizione **2022** di default. Scartata la variante a due righe senza
+sigla con dicitura estesa tra virgolette (`Classificazione secondo "The Paris System for
+Reporting Urinary Cytology"`), osservata anch'essa in referti reali ma non scelta come
+standard. La ricerca CTM (`"Negativa/positiva la ricerca di CTM"`, vista in più referti
+reali) resta fuori scope: è un esito ancillare non-TPS, testo libero aggiunto a mano.
+
 ### 5.2 Frasi chiave (template in `tps-data.js`)
 
 La frase di adeguatezza dipende da `cellularitaAdeguata`, `oscuramento` **e** dalla
-categoria **finale** del classificatore (`result.categoria`):
+categoria **finale** del classificatore (`result.categoria`). A differenza della
+versione precedente di questo documento, il caso "nessuna limitazione" non produce più
+alcuna frase: i referti reali non dichiarano mai l'adeguatezza quando è scontata.
 
 - categoria `NON_DIAGNOSTICO`, con `oscuramento = severo` o `oscuramentoCausa` indicata:
   *"Campione non valutabile per &lt;causa | 'elementi oscuranti'&gt;."*
@@ -224,12 +234,26 @@ categoria **finale** del classificatore (`result.categoria`):
 - `oscuramento = severo` + categoria `HGUC`/`SHGUC`:
   *"Campione limitato da &lt;causa&gt;, ma diagnostico per la presenza di cellule fortemente atipiche."*
 - `oscuramento = moderato` (categoria valutabile):
-  *"Valutabile, con limitazioni (&lt;causa&gt;)."* — mai "Adeguato".
-- altrimenti: *"Adeguato per la valutazione citologica."*
+  *"Valutabile, con limitazioni (&lt;causa&gt;)."*
+- altrimenti: nessuna frase (stringa vuota, non concatenata).
 
 Nota: dopo la regola 4, `oscuramento = severo` o `cellularitaAdeguata = false` implicano
 già `NON_DIAGNOSTICO` salvo `HGUC`/`SHGUC` — quindi le categorie `AUC`/`NHGUC`/`LGUN`
 compaiono solo con `oscuramento` ∈ `{assente-lieve, moderato}` e cellularità adeguata.
+
+La riga categoriale è sempre `DATA.categoriaEstesa[categoria].toUpperCase() + ' ' +
+DATA.fraseSecondoTPS` (`fraseSecondoTPS` = *"secondo The Paris System (TPS) 2022."*),
+tranne per il qualificatore LGUN che resta in forma sentence-case (nota accessoria, non
+la riga categoriale primaria).
+
+#### 5.2.1 Fonte del confronto
+
+Confronto fatto su due lotti di referti reali incollati in chat (2026-09-01), oltre a un
+export di lista (formato BIFF2, non lo standard xls moderno) con diagnosi troncate.
+Il primo lotto usava sistematicamente il Formato A; il secondo un formato alternativo a
+due righe con edizione dichiarata in modo incoerente (`2016`, assente, mai `2022`) — da
+cui la scelta esplicita di standardizzare, invece di dedurre un'unica convenzione
+implicita dal materiale.
 
 - Soglia alte vie:
   *"Per il campione da alte vie escretrici è stata applicata la soglia quantitativa TPS più restrittiva."*
@@ -318,24 +342,27 @@ manualReason:   string        // es. "polyomavirus", "effetto terapia BCG"
 | # | Scenario | Verifica |
 |---|---|---|
 | A | `HGUC`, oscuramento severo, cellule atipiche | contiene "diagnostico per la presenza di cellule fortemente atipiche" |
-| B | `SHGUC` + `manualCategory="AUC"`, `manualReason="polyomavirus"` | categoria nel testo = AUC; presente frase di riclassificazione manuale che cita "SHGUC" |
+| B | `SHGUC` + `manualCategory="AUC"`, `manualReason="polyomavirus"` | riga categoriale = "CELLULE UROTELIALI ATIPICHE (AUC) secondo The Paris System (TPS) 2022."; nota di riclassificazione cita "SHGUC" |
 | C | `NHGUC` + `qualificatore="LGUN"`, `applicaLGUN=true` | contiene riga qualificatore LGUN |
 | D | `campione=alteVie` | contiene frase "soglia quantitativa TPS più restrittiva" |
 | E | categoria semplice `NHGUC`, campione non-alteVie, nessun alert | blocco "Nota:" assente |
 | F | `SHGUC` da `alteVie` sotto soglia (test classify #12) | referto contiene sia "SHGUC" sia la frase soglia alte vie |
-| G | `manualCategory="AUC"` | riga sotto "Categoria diagnostica:" = "AUC" senza "riclassificata"; frase "Su valutazione del citopatologo…" nel blocco Nota |
+| G | `manualCategory="AUC"` | riga categoriale = "AUC" senza "riclassificata"; frase "Su valutazione del citopatologo…" nel blocco Nota |
 | H | `oscuramento=moderato`, categoria `NHGUC` | adeguatezza = "Valutabile, con limitazioni (…)"; **mai** "Adeguato per la valutazione" |
 | I | `cellularitaAdeguata=false`, nessun oscuramento | adeguatezza = "Campione non diagnostico per cellularità insufficiente"; non attribuita a elementi oscuranti |
-| J | `oscuramento=severo` + morfologia AUC + causa "sangue" | categoria `NON_DIAGNOSTICO`; adeguatezza = "Campione non valutabile per sangue" |
+| J | `oscuramento=severo` + morfologia AUC + causa "sangue" | categoria `NON_DIAGNOSTICO`; riga categoriale = "NON DIAGNOSTICO/INADEGUATO (ND) secondo The Paris System (TPS) 2022."; adeguatezza = "Campione non valutabile per sangue" |
+| L | `NHGUC` semplice | riga categoriale = "NEGATIVO PER CARCINOMA UROTELIALE DI ALTO GRADO (NHGUC) secondo The Paris System (TPS) 2022." verbatim (Formato A di reparto) |
 
 ## 8. Rischi e limiti
 
 - **Errore ad alto costo**: l'app propone una categoria diagnostica. Mitigazioni: funzioni
   pure testate, nessun declassamento automatico, referto editabile a mano, scelte di
   default dichiarate come prudenziali e non vincolanti, riclassificazione manuale tracciata.
-- L'utente dichiara di non essere esperto di TPS: i default sono sul lato prudente
-  (criteri completi con ipercromasia obbligatoria, soglia sensibile per basse vie, soglia
-  restrittiva forzata per alte vie).
+- L'utente è un citopatologo esperto (direttore di SC di Anatomia Patologica): i default
+  prudenziali (criteri completi con ipercromasia obbligatoria, soglia sensibile per basse
+  vie, soglia restrittiva forzata per alte vie) sono scelte di reparto dichiarate, non
+  supplenza a una competenza mancante — restano comunque overridabili in sede di
+  riclassificazione manuale.
 - La granularità dell'input (3 livelli di N/C, 3 fasce di conteggio, 3 livelli di
   oscuramento) è una semplificazione: accettata per l'uso previsto (supporto, non sostituzione).
 - LGUN da citologia è raramente conclusiva: resa come qualificatore di `NHGUC` con nota

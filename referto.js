@@ -22,7 +22,6 @@
 
   function paragrafoCitomorfologico(input, result) {
     var righe = [];
-    righe.push(input.cellularitaAdeguata === false ? 'Cellularità scarsa.' : 'Cellularità adeguata.');
     if (input.oscuramentoCausa) righe.push('Fondo con ' + input.oscuramentoCausa + '.');
 
     if ((input.nCellule || '0') === '0') {
@@ -57,7 +56,8 @@
       return DATA.fraseLimitatoMaDiagnostico(causa);
     }
     if (input.oscuramento === 'moderato') return DATA.fraseValutabileConLimitazioni(causa);
-    return DATA.fraseAdeguato;
+    // Nessuna limitazione: l'adeguatezza non va dichiarata esplicitamente (stile referto interno).
+    return '';
   }
 
   function buildReferto(input, result, scelte) {
@@ -67,22 +67,18 @@
     var applicaLGUN = scelte.applicaLGUN !== false;
 
     var L = [];
-    L.push('CITOLOGIA URINARIA — Sistema di Parigi (TPS 2022)');
+    var adeguatezza = fraseAdeguatezza(input, result);
+    var quadro = paragrafoCitomorfologico(input, result);
+    L.push([adeguatezza, quadro].filter(Boolean).join(' '));
     L.push('');
-    L.push('Campione: ' + (DATA.campioneEsteso[input.campione] || '—'));
-    L.push('Adeguatezza: ' + fraseAdeguatezza(input, result));
-    L.push('');
-    L.push('Quadro citomorfologico:');
-    L.push('  ' + paragrafoCitomorfologico(input, result));
-    L.push('');
-    L.push('Categoria diagnostica:');
+
     var estesa = DATA.categoriaEstesa[categoriaEffettiva] || categoriaEffettiva;
     if (categoriaEffettiva === 'ALTRE_NEOPLASIE' && input.nonUrotelialeTipo) {
       estesa += ' (' + input.nonUrotelialeTipo + ')';
     }
-    L.push('  ' + estesa);
+    L.push(estesa.toUpperCase() + ' ' + DATA.fraseSecondoTPS);
     if (categoriaEffettiva === 'NHGUC' && result.qualificatore === 'LGUN' && applicaLGUN) {
-      L.push('  ' + DATA.fraseQualificatoreLGUN);
+      L.push(DATA.fraseQualificatoreLGUN);
     }
 
     // Blocco Nota

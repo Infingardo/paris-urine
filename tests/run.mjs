@@ -244,8 +244,8 @@ const iB = inp({ campione: 'spontanea', ncRatio: '>=0.7',
   caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'sottoSoglia', reperti: { polyoma: true } });
 const tB = buildReferto(iB, classify(iB), { manualCategory: 'AUC', manualReason: 'polyomavirus' });
 const righeB = tB.split('\n');
-const idxCatB = righeB.findIndex(l => l.trim() === 'Categoria diagnostica:');
-eq('B — riga sotto "Categoria diagnostica:" = AUC', righeB[idxCatB + 1].trim(), 'Cellule uroteliali atipiche (AUC)');
+const idxCatB = righeB.findIndex(l => /secondo The Paris System \(TPS\) 2022\.$/.test(l));
+eq('B — riga categoria = AUC', righeB[idxCatB], 'CELLULE UROTELIALI ATIPICHE (AUC) secondo The Paris System (TPS) 2022.');
 check('B — Nota: riclassificazione manuale morfologica SHGUC → AUC',
   /riclassificata manualmente in Cellule uroteliali atipiche \(AUC\)/.test(tB) &&
   /categoria morfologica Sospetto per carcinoma uroteliale di alto grado \(SHGUC\)/.test(tB));
@@ -270,27 +270,27 @@ check('E — nessun blocco Nota', !/\nNota:/.test(tE));
 check('F — SHGUC presente', /SHGUC/.test(tD));
 check('F — frase soglia presente', /soglia quantitativa TPS più restrittiva/.test(tD));
 
-// G — la riga "Categoria diagnostica" mostra la scelta senza "riclassificata"; la frase sta nella Nota
-check('G — riga categoria senza "riclassificata"', !/riclassificat/i.test(righeB[idxCatB + 1]));
+// G — la riga categoria mostra la scelta senza "riclassificata"; la frase sta nella Nota
+check('G — riga categoria senza "riclassificata"', !/riclassificat/i.test(righeB[idxCatB]));
 check('G — frase citopatologo nella Nota', /Su valutazione del citopatologo/.test(tB));
 
 // H — oscuramento moderato + categoria NHGUC → "Valutabile, con limitazioni", mai "Adeguato"
 const iH = inp({ campione: 'spontanea', oscuramento: 'moderato', oscuramentoCausa: 'flogosi' });
 const tH = buildReferto(iH, classify(iH), {});
-check('H — frase "Valutabile, con limitazioni"', /Adeguatezza: Valutabile, con limitazioni \(flogosi\)\./.test(tH));
+check('H — frase "Valutabile, con limitazioni"', /Valutabile, con limitazioni \(flogosi\)\./.test(tH));
 check('H — non dice "Adeguato per la valutazione"', !/Adeguato per la valutazione/.test(tH));
 
 // I — ipocellulare senza oscuranti → "non diagnostico per cellularità insufficiente"
 const iI = inp({ campione: 'spontanea', cellularitaAdeguata: false });
 const tI = buildReferto(iI, classify(iI), {});
-check('I — frase cellularità insufficiente', /Adeguatezza: Campione non diagnostico per cellularità insufficiente\./.test(tI));
+check('I — frase cellularità insufficiente', /Campione non diagnostico per cellularità insufficiente\./.test(tI));
 check('I — non attribuisce a elementi oscuranti', !/non valutabile per elementi oscuranti/.test(tI));
 
 // I2 — ipocellulare + causa testuale ma oscuramento non severo → resta frase cellularità
 const iI2 = inp({ campione: 'spontanea', cellularitaAdeguata: false, oscuramento: 'moderato', oscuramentoCausa: 'flogosi' });
 const tI2 = buildReferto(iI2, classify(iI2), {});
 check('I2 — la causa testuale non dirotta un ND da ipocellularità',
-  /Adeguatezza: Campione non diagnostico per cellularità insufficiente\./.test(tI2));
+  /Campione non diagnostico per cellularità insufficiente\./.test(tI2));
 
 // K — quadro citomorfologico: criteri e conteggio in frasi separate, N/C simbolico
 const iK = inp({ campione: 'spontanea', ncRatio: '>=0.7',
@@ -303,8 +303,14 @@ check('K — frase conteggio separata', /Il numero di cellule atipiche è inferi
 const iJ = inp({ campione: 'spontanea', oscuramento: 'severo', oscuramentoCausa: 'sangue',
   ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia' });
 const tJ = buildReferto(iJ, classify(iJ), {});
-check('J — categoria ND nel testo', /Non diagnostico \/ insoddisfacente/.test(tJ));
-check('J — adeguatezza "non valutabile per sangue"', /Adeguatezza: Campione non valutabile per sangue\./.test(tJ));
+check('J — categoria ND nel testo', /NON DIAGNOSTICO\/INADEGUATO \(ND\) secondo The Paris System \(TPS\) 2022\./.test(tJ));
+check('J — adeguatezza "non valutabile per sangue"', /Campione non valutabile per sangue\./.test(tJ));
+
+// L — NHGUC semplice: riga categoria formattata secondo lo stile di reparto (Formato A)
+const iL = inp({ campione: 'spontanea' });
+const tL = buildReferto(iL, classify(iL), {});
+check('L — riga categoria formato di reparto',
+  tL.split('\n').includes('NEGATIVO PER CARCINOMA UROTELIALE DI ALTO GRADO (NHGUC) secondo The Paris System (TPS) 2022.'));
 
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
 if (failures.length) { console.log('\nFallimenti:'); failures.forEach(f => console.log('  ✗ ' + f)); }
