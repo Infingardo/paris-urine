@@ -1,4 +1,4 @@
-const CACHE = 'paris-v1';
+const CACHE = 'paris-v2';
 const ASSETS = [
   './', './index.html', './manifest.json',
   './tps-data.js', './classifier.js', './referto.js', './app.js',
@@ -26,11 +26,17 @@ self.addEventListener('fetch', e => {
         .catch(() => caches.match(e.request).then(m => m || caches.match('./index.html')))
     );
   } else {
+    // Stale-while-revalidate per gli asset (js/css/png): serve subito la copia in
+    // cache ma scarica sempre l'aggiornamento in background, così una nuova versione
+    // arriva al ricaricamento successivo senza dover bumpare CACHE ogni volta.
     e.respondWith(
-      caches.match(e.request).then(m => m || fetch(e.request).then(r => {
-        if (r && r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); }
-        return r;
-      }))
+      caches.match(e.request).then(cached => {
+        const fresh = fetch(e.request).then(r => {
+          if (r && r.ok) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(e.request, cp)); }
+          return r;
+        }).catch(() => cached);
+        return cached || fresh;
+      })
     );
   }
 });
