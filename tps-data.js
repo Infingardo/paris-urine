@@ -2,6 +2,10 @@
   'use strict';
 
   var TPS_DATA = {
+    // Fonte unica della versione. Deve restare allineata a package.json, ai
+    // parametri ?v= degli script in index.html e a VERSION in sw.js: il test
+    // 'coerenza versione' in tests/run.mjs fallisce se divergono.
+    versione: '0.2.0',
     categoriaEstesa: {
       NON_DIAGNOSTICO: 'Non diagnostico/inadeguato (ND)',
       NHGUC: 'Negativo per carcinoma uroteliale di alto grado (NHGUC)',
@@ -47,6 +51,11 @@
     fraseSogliaAlteVie: 'Per il campione da alte vie escretrici è stata applicata la soglia quantitativa TPS più restrittiva.',
     fraseQualificatoreLGUN: 'Qualificatore: quadro compatibile con neoplasia uroteliale papillare di basso grado ' +
       '(frammenti papillari con asse fibrovascolare); la diagnosi definitiva è istologica.',
+    // Motivo tracciato nel referto quando si accetta l'azione suggerita da un alert.
+    motivoAlert: {
+      criteriParziali: 'atipia ritenuta marcata alla revisione',
+      confondente: 'confondente morfologico'
+    },
     fraseRiclassificaManuale: function (morfologicaEstesa, sceltaEstesa, motivo) {
       return 'Su valutazione del citopatologo la categoria morfologica ' + morfologicaEstesa +
         ' è stata riclassificata manualmente in ' + sceltaEstesa +

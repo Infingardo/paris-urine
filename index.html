@@ -173,6 +173,7 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
     <p class="avvertenza">
       Strumento di supporto alla decisione. La categoria proposta va confermata con
       correlazione clinico-strumentale. Nessun declassamento è applicato automaticamente.
+      <span id="app-version" class="badge" title="Versione dell'applicazione"></span>
     </p>
   </section>
 </div>
@@ -217,10 +218,10 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
   <p>Non declassano automaticamente: generano un avviso. L'eventuale riclassificazione è scelta esplicita del citopatologo.</p>
 </aside>
 
-<script src="tps-data.js"></script>
-<script src="classifier.js"></script>
-<script src="referto.js"></script>
-<script src="app.js"></script>
+<script src="tps-data.js?v=0.2.0"></script>
+<script src="classifier.js?v=0.2.0"></script>
+<script src="referto.js?v=0.2.0"></script>
+<script src="app.js?v=0.2.0"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {

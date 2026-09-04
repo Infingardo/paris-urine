@@ -312,6 +312,64 @@ const tL = buildReferto(iL, classify(iL), {});
 check('L — riga categoria formato di reparto',
   tL.split('\n').includes('NEGATIVO PER CARCINOMA UROTELIALE DI ALTO GRADO (NHGUC) secondo The Paris System (TPS) 2022.'));
 
+section('coerenza versione');
+
+// La versione vive in quattro posti (tps-data.js, package.json, i ?v= di index.html,
+// VERSION in sw.js). Se divergono, il service worker puo' servire JS vecchio insieme
+// a HTML nuovo: e' esattamente il disallineamento che il versionamento deve impedire.
+{
+  const fs = require('node:fs');
+  const TPS_DATA = require('../tps-data.js');
+  const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const html = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const sw = fs.readFileSync(new URL('../sw.js', import.meta.url), 'utf8');
+  const V = TPS_DATA.versione;
+
+  check('tps-data.js espone una versione semver', /^\d+\.\d+\.\d+$/.test(V || ''), String(V));
+  eq('package.json allineato', pkg.version, V);
+
+  const attesi = ['tps-data.js', 'classifier.js', 'referto.js', 'app.js'];
+  attesi.forEach(f => {
+    check(`index.html carica ${f}?v=${V}`, html.includes(`src="${f}?v=${V}"`));
+  });
+  check('index.html non carica script senza ?v=',
+    !attesi.some(f => html.includes(`src="${f}"`)));
+
+  const mSw = sw.match(/const VERSION = '([^']+)'/);
+  eq('sw.js VERSION allineata', mSw && mSw[1], V);
+  attesi.forEach(f => {
+    check(`sw.js precarica ${f} versionato`, sw.includes(`'./${f}?v=' + VERSION`));
+  });
+  check('index.html mostra la versione', html.includes('id="app-version"'));
+}
+
+section('riclassificazione manuale');
+
+// L'alert criteriParziali propone SHGUC: il referto deve saper tracciare l'elevazione,
+// non solo il declassamento ad AUC.
+{
+  const iUp = inp({ ncRatio: '>=0.7', caratteri: { membranaIrregolare: true, cromatinaGrossolana: true }, nCellule: 'pariOSopraSoglia' });
+  const rUp = classify(iUp);
+  eq('morfologica resta AUC', rUp.categoria, 'AUC');
+  const aUp = rUp.alert.find(a => a.tipo === 'criteriParziali');
+  check('alert criteriParziali presente', !!aUp);
+  eq('azioneSuggerita SHGUC', aUp && aUp.azioneSuggerita, 'SHGUC');
+
+  const tUp = buildReferto(iUp, rUp, { manualCategory: 'SHGUC', manualReason: TPS_DATA.motivoAlert.criteriParziali });
+  check('referto riporta la categoria elevata',
+    tUp.includes('SOSPETTO PER CARCINOMA UROTELIALE DI ALTO GRADO (SHGUC) secondo The Paris System (TPS) 2022.'));
+  check('referto traccia la riclassificazione manuale',
+    /riclassificata manualmente in Sospetto per carcinoma uroteliale di alto grado \(SHGUC\) per la presenza di atipia ritenuta marcata alla revisione/.test(tUp));
+
+  // il declassamento per confondente deve continuare a funzionare
+  const iDn = inp({ ncRatio: '>=0.7', caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'pariOSopraSoglia', reperti: { polyoma: true } });
+  const rDn = classify(iDn);
+  const tDn = buildReferto(iDn, rDn, { manualCategory: 'AUC', manualReason: 'polyomavirus/decoy cells' });
+  check('declassamento ad AUC ancora tracciato',
+    /riclassificata manualmente in Cellule uroteliali atipiche \(AUC\) per la presenza di polyomavirus\/decoy cells/.test(tDn));
+  eq('categoria morfologica intatta dopo il declassamento', rDn.categoria, 'HGUC');
+}
+
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
 if (failures.length) { console.log('\nFallimenti:'); failures.forEach(f => console.log('  ✗ ' + f)); }
 process.exit(fail === 0 ? 0 : 1);

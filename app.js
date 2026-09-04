@@ -110,6 +110,13 @@
       : '';
   }
 
+  // Motivo tracciato in Nota quando si accetta l'azione suggerita da un alert.
+  function motivoRiclassifica(a, input) {
+    if (a.tipo === 'confondente')
+      return input.reperti.polyoma ? 'polyomavirus/decoy cells' : 'effetto terapia';
+    return (TPS_DATA.motivoAlert && TPS_DATA.motivoAlert[a.tipo]) || '';
+  }
+
   // ── Render risultato ─────────────────────────────────
   function render(input, result) {
     var estesa = TPS_DATA.categoriaEstesa[stato.manualCategory || result.categoria] || (stato.manualCategory || result.categoria);
@@ -127,12 +134,17 @@
       var d = document.createElement('div');
       d.className = 'alert' + (a.tipo === 'confondente' ? ' confondente' : '');
       d.textContent = a.messaggio;
-      if (a.tipo === 'confondente' && !stato.manualCategory) {
+      // Il bottone e' guidato da azioneSuggerita, non dal tipo di alert: cosi'
+      // l'elevazione proposta da 'criteriParziali' (-> SHGUC) e' realmente
+      // eseguibile, e non solo enunciata. Il declassamento resta uno dei due versi.
+      if (a.azioneSuggerita && !stato.manualCategory) {
+        var motivo = motivoRiclassifica(a, input);
         var btn = document.createElement('button');
-        btn.textContent = 'Riclassifica manualmente come AUC per confondente morfologico';
+        btn.textContent = 'Riclassifica manualmente come ' + a.azioneSuggerita +
+          (motivo ? ' — ' + motivo : '');
         btn.addEventListener('click', function () {
-          stato.manualCategory = 'AUC';
-          stato.manualReason = input.reperti.polyoma ? 'polyomavirus/decoy cells' : 'effetto terapia';
+          stato.manualCategory = a.azioneSuggerita;
+          stato.manualReason = motivo;
           aggiorna();
         });
         d.appendChild(document.createElement('br'));
@@ -187,11 +199,37 @@
     aggiorna();
   });
 
+  // Copia con esito SEMPRE visibile: senza catch, un rifiuto della Clipboard API
+  // (contesto non sicuro, es. apertura via file://) lasciava il bottone invariato e
+  // l'utente incollava il referto precedente credendo di avere quello nuovo.
+  function esitoCopia(msg) {
+    var b = $('btn-copia');
+    b.textContent = msg;
+    setTimeout(function () { b.textContent = 'Copia negli appunti'; }, 2500);
+  }
+  function copiaFallback(testo) {
+    var ta = document.createElement('textarea');
+    ta.value = testo;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, ta.value.length);
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    document.body.removeChild(ta);
+    return ok;
+  }
   $('btn-copia').addEventListener('click', function () {
-    navigator.clipboard.writeText($('referto').value).then(function () {
-      $('btn-copia').textContent = 'Copiato ✓';
-      setTimeout(function () { $('btn-copia').textContent = 'Copia negli appunti'; }, 1500);
-    });
+    var testo = $('referto').value;
+    var fallback = function () {
+      esitoCopia(copiaFallback(testo) ? 'Copiato ✓' : 'Copia non riuscita — seleziona e copia a mano');
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(testo).then(function () { esitoCopia('Copiato ✓'); }, fallback);
+    } else {
+      fallback();
+    }
   });
 
   $('btn-scarica').addEventListener('click', function () {
@@ -200,8 +238,12 @@
     a.href = URL.createObjectURL(blob);
     a.download = 'referto-citologia-urinaria.txt';
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    URL.revokeObjectURL(a.href);
+    // revoca differita: revocare in modo sincrono puo' abortire il download.
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 100);
   });
+
+  var elVer = $('app-version');
+  if (elVer) elVer.textContent = 'v' + (TPS_DATA.versione || '?');
 
   aggiorna();
 })();

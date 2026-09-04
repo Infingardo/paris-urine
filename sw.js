@@ -1,7 +1,13 @@
-const CACHE = 'paris-v2';
+// VERSION deve coincidere con TPS_DATA.versione, package.json e i ?v= in index.html
+// (verificato dal test 'coerenza versione'). Gli asset sono precaricati con lo stesso
+// parametro usato da index.html: un deploy cambia le URL, quindi il vecchio JS non puo'
+// piu' essere servito insieme al nuovo HTML.
+const VERSION = '0.2.0';
+const CACHE = 'paris-v' + VERSION;
 const ASSETS = [
   './', './index.html', './manifest.json',
-  './tps-data.js', './classifier.js', './referto.js', './app.js',
+  './tps-data.js?v=' + VERSION, './classifier.js?v=' + VERSION,
+  './referto.js?v=' + VERSION, './app.js?v=' + VERSION,
   './icon-192.png', './icon-512.png'
 ];
 
