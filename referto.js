@@ -31,9 +31,9 @@
       righe.push('Popolazione uroteliale atipica con rapporto N/C ' +
         DATA.ncLabel[input.ncRatio || '<0.5'] +
         (crit.length ? '; si osservano ' + join(crit) : ' senza atipie nucleari di rilievo') + '.');
-      righe.push('Il numero di cellule atipiche è ' +
-        (input.nCellule === 'pariOSopraSoglia' ? 'pari o superiore' : 'inferiore') +
-        ' alla soglia quantitativa applicata (' + result.sogliaEffettiva + ' cellule).');
+      righe.push(input.nCellule === 'pariOSopraSoglia'
+        ? 'Le cellule diagnostiche sono numerose (“many” secondo TPS 2.0).'
+        : 'Le cellule diagnostiche sono poche (“few” secondo TPS 2.0).');
     }
     return righe.join(' ');
   }

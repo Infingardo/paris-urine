@@ -1,7 +1,7 @@
 ;(function () {
   'use strict';
   var $ = function (id) { return document.getElementById(id); };
-  var LS_TEMA = 'paris.tema', LS_SOGLIA = 'paris.sogliaBasseVie';
+  var LS_TEMA = 'paris.tema';
 
   var stato = { manualCategory: null, manualReason: '' };
 
@@ -25,16 +25,6 @@
   $('btn-bigino').addEventListener('click', function () { toggleBigino(); });
   $('btn-bigino-close').addEventListener('click', function () { toggleBigino(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') toggleBigino(false); });
-
-  // ── Impostazione soglia (persistita) ──────────────────
-  try {
-    var s = localStorage.getItem(LS_SOGLIA);
-    if (s) $('sogliaLabBasseVie').value = s;
-  } catch (e) {}
-  $('sogliaLabBasseVie').addEventListener('change', function () {
-    try { localStorage.setItem(LS_SOGLIA, $('sogliaLabBasseVie').value); } catch (e) {}
-    aggiorna();
-  });
 
   // Unisce una lista in italiano: "a", "a e b", "a, b e c".
   function joinIt(a) {
@@ -71,7 +61,6 @@
         membranaIrregolare: $('car-membrana').checked,
         cromatinaGrossolana: $('car-cromatina').checked
       },
-      sogliaLabBasseVie: parseInt($('sogliaLabBasseVie').value, 10),
       nCellule: $('nCellule').value,
       reperti: {
         papillareFibrovascolare: $('rep-papillare').checked,
@@ -96,18 +85,15 @@
     return false;
   }
 
-  function etichettaSoglia(input) {
-    var soglia = input.campione === 'alteVie' ? 10 : input.sogliaLabBasseVie;
-    $('hint-soglia').textContent = 'Soglia effettiva: ' + soglia + ' cellule' +
-      (input.campione === 'alteVie' ? ' (fissata per le alte vie)' : '');
-    $('nCellule').options[1].textContent = '1 – ' + (soglia - 1);
-    $('nCellule').options[2].textContent = '≥ ' + soglia;
+  function etichettaSoglia() {
+    $('hint-soglia').textContent = 'TPS 2.0 non fissa un cutoff assoluto: integrare quantità, qualità dell’atipia, campione e contesto clinico.';
   }
 
   function hintCampione(input) {
-    $('hint-campione').textContent = (input.campione === 'cateterismo' || input.campione === 'washing')
-      ? 'Campione strumentato: aggregati uroteliali benigni e frammenti papillari attesi, non sovrastimare.'
-      : '';
+    var strumentato = input.campione !== 'spontanea';
+    $('hint-campione').textContent = strumentato
+      ? 'Adeguatezza orientativa: >20 cellule uroteliali/10 HPF; 10–20 limitato; <10 non diagnostico. Non sovrastimare aggregati da strumentazione.'
+      : 'Adeguatezza orientativa: volume >25 mL con ThinPrep o >30 mL con SurePath.';
   }
 
   // Motivo tracciato in Nota quando si accetta l'azione suggerita da un alert.
@@ -167,7 +153,7 @@
   function aggiorna() {
     var input = leggiInput();
     if (sincronizzaVincoli(input)) input = leggiInput();
-    etichettaSoglia(input);
+    etichettaSoglia();
     hintCampione(input);
     var result = TPS.classify(input);
     render(input, result);

@@ -22,20 +22,14 @@ function section(t) { console.log(`\n• ${t}`); }
 // I casi vengono aggiunti nei task successivi.
 // ─────────────────────────────────────────────────────────────
 
-const { criteriLevel, sogliaEffettiva } = require('../classifier.js');
+const { criteriLevel } = require('../classifier.js');
 
 section('criteriLevel');
 eq('nessun criterio → assenti', criteriLevel({}), 'assenti');
 eq('solo ipercromasia → parziali', criteriLevel({ ipercromasia: true }), 'parziali');
 eq('ipercromasia + membrana → completi', criteriLevel({ ipercromasia: true, membranaIrregolare: true }), 'completi');
 eq('ipercromasia + cromatina → completi', criteriLevel({ ipercromasia: true, cromatinaGrossolana: true }), 'completi');
-eq('membrana + cromatina senza ipercromasia → parziali', criteriLevel({ membranaIrregolare: true, cromatinaGrossolana: true }), 'parziali');
-
-section('sogliaEffettiva');
-eq('alte vie → 10 forzata', sogliaEffettiva({ campione: 'alteVie', sogliaLabBasseVie: 5 }), 10);
-eq('basse vie default → 5', sogliaEffettiva({ campione: 'spontanea' }), 5);
-eq('basse vie impostata a 10 → 10', sogliaEffettiva({ campione: 'washing', sogliaLabBasseVie: 10 }), 10);
-eq('soglia come stringa "10" → 10', sogliaEffettiva({ campione: 'washing', sogliaLabBasseVie: '10' }), 10);
+eq('membrana + cromatina senza ipercromasia → completi', criteriLevel({ membranaIrregolare: true, cromatinaGrossolana: true }), 'completi');
 
 // scorciatoia per costruire input completi con default sensati
 function inp(over = {}) {
@@ -46,7 +40,6 @@ function inp(over = {}) {
     oscuramentoCausa: '',
     ncRatio: '<0.5',
     caratteri: {},
-    sogliaLabBasseVie: 5,
     nCellule: '0',
     reperti: {},
     nonUrotelialeTipo: ''
@@ -71,16 +64,16 @@ const r3 = classify(inp({ ncRatio: '>=0.7', caratteri: { ipercromasia: true }, n
 eq('#3 categoria', r3.categoria, 'AUC');
 check('#3 alert criteriParziali', hasAlert(r3, 'criteriParziali'));
 
-// 4 — AUC + alert (membrana + cromatina, no ipercromasia)
+// 4 — due criteri su tre bastano anche senza ipercromasia
 const r4 = classify(inp({ ncRatio: '>=0.7', caratteri: { membranaIrregolare: true, cromatinaGrossolana: true }, nCellule: 'sottoSoglia' }));
-eq('#4 categoria', r4.categoria, 'AUC');
-check('#4 alert criteriParziali', hasAlert(r4, 'criteriParziali'));
+eq('#4 categoria', r4.categoria, 'SHGUC');
+check('#4 nessun alert criteriParziali', !hasAlert(r4, 'criteriParziali'));
 
 // 5 — AUC (N/C 0.5-0.7 + 1 criterio)
 eq('#5 AUC', classify(inp({ ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia' })).categoria, 'AUC');
 
-// 6 — AUC default (N/C >=0.7, nessun criterio, popolazione presente)
-eq('#6 AUC default', classify(inp({ ncRatio: '>=0.7', caratteri: {}, nCellule: 'sottoSoglia' })).categoria, 'AUC');
+// 6 — N/C elevato isolato non basta per AUC
+eq('#6 NHGUC', classify(inp({ ncRatio: '>=0.7', caratteri: {}, nCellule: 'sottoSoglia' })).categoria, 'NHGUC');
 
 // 7 — nCellule 0 → nessuna popolazione atipica → NHGUC
 eq('#7 NHGUC (nCellule 0)', classify(inp({ ncRatio: '>=0.7', caratteri: {}, nCellule: '0' })).categoria, 'NHGUC');
@@ -96,7 +89,6 @@ const rShape = classify(inp({ ncRatio: '>=0.7', caratteri: { ipercromasia: true,
 check('output ha array motivazione', Array.isArray(rShape.motivazione));
 check('output ha array alert', Array.isArray(rShape.alert));
 check('output ha array promemoria', Array.isArray(rShape.promemoria));
-eq('output sogliaEffettiva', rShape.sogliaEffettiva, 5);
 eq('output qualificatore default null', rShape.qualificatore, null);
 
 section('classify — LGUN / non diagnostico / NHGUC');
@@ -109,7 +101,7 @@ eq('#10 qualificatore LGUN', r10.qualificatore, 'LGUN');
 // 11 — frammenti papillari in campione strumentato: niente qualificatore, promemoria
 const r11 = classify(inp({ campione: 'washing', reperti: { papillareFibrovascolare: true } }));
 eq('#11 categoria NHGUC', r11.categoria, 'NHGUC');
-eq('#11 nessun qualificatore', r11.qualificatore, null);
+eq('#11 qualificatore LGUN', r11.qualificatore, 'LGUN');
 check('#11 promemoria presente', r11.promemoria.length > 0);
 
 // 14 — oscuramento severo, nessuna atipia → NON_DIAGNOSTICO
@@ -137,19 +129,19 @@ eq('#21 ND prevale su LGUN (ipocellulare)',
   classify(inp({ cellularitaAdeguata: false, reperti: { papillareFibrovascolare: true } })).categoria, 'NON_DIAGNOSTICO');
 
 // 22 — SICUREZZA: N/C ≥ 0.7 + criteriAssenti + pariOSopraSoglia NON deve diventare HGUC
-eq('#22 criteriAssenti + molte cellule → AUC (non HGUC)',
-  classify(inp({ ncRatio: '>=0.7', caratteri: {}, nCellule: 'pariOSopraSoglia' })).categoria, 'AUC');
+eq('#22 criteriAssenti + molte cellule → NHGUC (non AUC/HGUC)',
+  classify(inp({ ncRatio: '>=0.7', caratteri: {}, nCellule: 'pariOSopraSoglia' })).categoria, 'NHGUC');
 
 // 23 — cateterismo + frammenti papillari → promemoria, nessun qualificatore
 const r23 = classify(inp({ campione: 'cateterismo', reperti: { papillareFibrovascolare: true } }));
 eq('#23 NHGUC', r23.categoria, 'NHGUC');
-eq('#23 nessun qualificatore', r23.qualificatore, null);
+eq('#23 qualificatore LGUN', r23.qualificatore, 'LGUN');
 check('#23 promemoria presente', r23.promemoria.length > 0);
 
 // 24 — alte vie + frammenti papillari → strumentato: promemoria, nessun qualificatore
 const r24 = classify(inp({ campione: 'alteVie', reperti: { papillareFibrovascolare: true } }));
 eq('#24 NHGUC', r24.categoria, 'NHGUC');
-eq('#24 nessun qualificatore (alte vie = strumentato)', r24.qualificatore, null);
+eq('#24 qualificatore LGUN', r24.qualificatore, 'LGUN');
 check('#24 promemoria presente', r24.promemoria.length > 0);
 
 // 25 — enum malformato → errore esplicito, non classificazione silenziosa
@@ -198,7 +190,6 @@ const r12 = classify(inp({
   caratteri: { ipercromasia: true, cromatinaGrossolana: true }, nCellule: 'sottoSoglia'
 }));
 eq('#12 SHGUC (soglia alte vie)', r12.categoria, 'SHGUC');
-eq('#12 sogliaEffettiva 10', r12.sogliaEffettiva, 10);
 
 // 13 — come #12 ma cellule ≥ 10 → HGUC
 const r13 = classify(inp({
@@ -206,7 +197,6 @@ const r13 = classify(inp({
   caratteri: { ipercromasia: true, cromatinaGrossolana: true }, nCellule: 'pariOSopraSoglia'
 }));
 eq('#13 HGUC', r13.categoria, 'HGUC');
-eq('#13 sogliaEffettiva 10', r13.sogliaEffettiva, 10);
 
 // 19 — AUC + litiasi → AUC + alert litiasi informativo
 const r19 = classify(inp({ ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia', reperti: { litiasi: true } }));
@@ -253,13 +243,13 @@ check('B — Nota: riclassificazione manuale morfologica SHGUC → AUC',
 // C — NHGUC + qualificatore LGUN
 const iC = inp({ campione: 'spontanea', reperti: { papillareFibrovascolare: true } });
 const tC = buildReferto(iC, classify(iC), { applicaLGUN: true });
-check('C — riga qualificatore LGUN', /basso grado/i.test(tC) && /Qualificatore/.test(tC));
+check('C — nota morfologica LGUN', /basso grado/i.test(tC) && /asse fibrovascolare/.test(tC));
 
 // D — campione alte vie → frase soglia restrittiva
 const iD = inp({ campione: 'alteVie', ncRatio: '>=0.7',
   caratteri: { ipercromasia: true, cromatinaGrossolana: true }, nCellule: 'sottoSoglia' });
 const tD = buildReferto(iD, classify(iD), {});
-check('D — frase soglia alte vie', /soglia quantitativa TPS più restrittiva/.test(tD));
+check('D — nota interpretativa alte vie', /cutoff numerico assoluto/.test(tD));
 
 // E — categoria semplice senza note → blocco "Nota:" assente
 const iE = inp({ campione: 'spontanea' });
@@ -268,7 +258,7 @@ check('E — nessun blocco Nota', !/\nNota:/.test(tE));
 
 // F — SHGUC da alte vie: testo contiene sia "SHGUC" sia la frase soglia
 check('F — SHGUC presente', /SHGUC/.test(tD));
-check('F — frase soglia presente', /soglia quantitativa TPS più restrittiva/.test(tD));
+check('F — nota alte vie presente', /cutoff numerico assoluto/.test(tD));
 
 // G — la riga categoria mostra la scelta senza "riclassificata"; la frase sta nella Nota
 check('G — riga categoria senza "riclassificata"', !/riclassificat/i.test(righeB[idxCatB]));
@@ -297,7 +287,7 @@ const iK = inp({ campione: 'spontanea', ncRatio: '>=0.7',
   caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'sottoSoglia' });
 const tK = buildReferto(iK, classify(iK), {});
 check('K — frase criteri', /Popolazione uroteliale atipica con rapporto N\/C ≥ 0,7; si osservano ipercromasia e membrana nucleare irregolare\./.test(tK));
-check('K — frase conteggio separata', /Il numero di cellule atipiche è inferiore alla soglia quantitativa applicata \(5 cellule\)\./.test(tK));
+check('K — frase quantità separata', /Le cellule diagnostiche sono poche \(“few” secondo TPS 2\.0\)\./.test(tK));
 
 // J — oscuramento severo + AUC-morfologia → ND, adeguatezza dice "non valutabile per <causa>"
 const iJ = inp({ campione: 'spontanea', oscuramento: 'severo', oscuramentoCausa: 'sangue',
@@ -348,7 +338,7 @@ section('riclassificazione manuale');
 // L'alert criteriParziali propone SHGUC: il referto deve saper tracciare l'elevazione,
 // non solo il declassamento ad AUC.
 {
-  const iUp = inp({ ncRatio: '>=0.7', caratteri: { membranaIrregolare: true, cromatinaGrossolana: true }, nCellule: 'pariOSopraSoglia' });
+  const iUp = inp({ ncRatio: '>=0.7', caratteri: { membranaIrregolare: true }, nCellule: 'pariOSopraSoglia' });
   const rUp = classify(iUp);
   eq('morfologica resta AUC', rUp.categoria, 'AUC');
   const aUp = rUp.alert.find(a => a.tipo === 'criteriParziali');

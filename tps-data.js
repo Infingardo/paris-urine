@@ -5,7 +5,7 @@
     // Fonte unica della versione. Deve restare allineata a package.json, ai
     // parametri ?v= degli script in index.html e a VERSION in sw.js: il test
     // 'coerenza versione' in tests/run.mjs fallisce se divergono.
-    versione: '0.2.0',
+    versione: '0.3.0',
     categoriaEstesa: {
       NON_DIAGNOSTICO: 'Non diagnostico/inadeguato (ND)',
       NHGUC: 'Negativo per carcinoma uroteliale di alto grado (NHGUC)',
@@ -48,9 +48,8 @@
       return 'Valutabile, con limitazioni' + (causa ? ' (' + causa + ')' : '') + '.';
     },
     // Note
-    fraseSogliaAlteVie: 'Per il campione da alte vie escretrici è stata applicata la soglia quantitativa TPS più restrittiva.',
-    fraseQualificatoreLGUN: 'Qualificatore: quadro compatibile con neoplasia uroteliale papillare di basso grado ' +
-      '(frammenti papillari con asse fibrovascolare); la diagnosi definitiva è istologica.',
+    fraseSogliaAlteVie: 'Campione da alte vie escretrici: interpretazione integrata con tipo di prelievo, intensità dell’atipia e contesto clinico; TPS 2.0 non stabilisce un cutoff numerico assoluto.',
+    fraseQualificatoreLGUN: 'Nel contesto di un risultato NHGUC, la presenza di frammenti papillari con autentico asse fibrovascolare e cellule citologicamente blande è compatibile con neoplasia uroteliale papillare di basso grado; la diagnosi definitiva è istologica.',
     // Motivo tracciato nel referto quando si accetta l'azione suggerita da un alert.
     motivoAlert: {
       criteriParziali: 'atipia ritenuta marcata alla revisione',

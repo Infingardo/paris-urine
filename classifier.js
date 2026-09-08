@@ -23,22 +23,16 @@
   }
 
   // 'assenti' | 'parziali' | 'completi'
-  // completi = ipercromasia OBBLIGATORIA + almeno uno tra membrana irregolare / cromatina grossolana
+  // completi = almeno due dei tre criteri TPS 2.0. L'ipercromasia non e'
+  // obbligatoria: esistono HGUC ipo-/normocromatici.
   function criteriLevel(caratteri) {
     caratteri = caratteri || {};
     var iper = !!caratteri.ipercromasia;
     var memb = !!caratteri.membranaIrregolare;
     var crom = !!caratteri.cromatinaGrossolana;
     if (!iper && !memb && !crom) return 'assenti';
-    if (iper && (memb || crom)) return 'completi';
+    if (Number(iper) + Number(memb) + Number(crom) >= 2) return 'completi';
     return 'parziali';
-  }
-
-  // Soglia quantitativa HGUC effettiva: 10 forzata per le alte vie, altrimenti 5 o 10 da impostazione.
-  function sogliaEffettiva(input) {
-    input = input || {};
-    if (input.campione === 'alteVie') return 10;
-    return Number(input.sogliaLabBasseVie) === 10 ? 10 : 5;
   }
 
   function classify(input) {
@@ -48,14 +42,12 @@
     var caratteri = input.caratteri || {};
     var reperti = input.reperti || {};
     var crit = criteriLevel(caratteri);
-    var soglia = sogliaEffettiva(input);
     var nCel = input.nCellule || '0';
     var nc = input.ncRatio || '<0.5';
 
     var out = {
       categoria: null,
       qualificatore: null,
-      sogliaEffettiva: soglia,
       motivazione: [],
       alert: [],
       promemoria: []
@@ -72,16 +64,17 @@
     // Senza popolazione atipica (nCellule = 0) i rami di alto grado e AUC non si applicano.
     var popolazioneAtipica = nCel !== '0';
 
-    // Regole 2–3 — carcinoma uroteliale di alto grado. Richiedono N/C ≥ 0.7 + criteri completi.
+    // Regole 2–3 — asse di alto grado. TPS 2.0 non sostiene un cutoff numerico
+    // rigido: SHGUC = poche cellule diagnostiche; HGUC = molte cellule diagnostiche.
     if (popolazioneAtipica && nc === '>=0.7' && crit === 'completi') {
       if (nCel === 'pariOSopraSoglia') {
         out.categoria = 'HGUC';
         out.motivazione.push('N/C ≥ 0.7', 'ipercromasia + (membrana irregolare o cromatina grossolana)',
-          'cellule atipiche in numero pari o superiore alla soglia (' + soglia + ')');
+          'numerose cellule diagnostiche (“many” secondo TPS 2.0)');
       } else {
         out.categoria = 'SHGUC';
         out.motivazione.push('N/C ≥ 0.7', 'criteri nucleari completi',
-          'cellule atipiche in numero inferiore alla soglia (' + soglia + ') → SHGUC anziché HGUC');
+          'poche cellule diagnostiche (“few” secondo TPS 2.0) → SHGUC anziché HGUC');
       }
     }
 
@@ -113,22 +106,19 @@
           azioneSuggerita: 'SHGUC'
         });
       } else if (nc === '>=0.7' && crit === 'assenti') {
-        out.categoria = 'AUC';
-        out.motivazione.push('N/C ≥ 0.7 senza criteri nucleari (default prudenziale)');
+        out.promemoria.push('N/C elevato isolato: non sufficiente per AUC; escludere cellule basali, strumentazione e degenerazione.');
       }
     }
 
-    // Regola 6 — NHGUC con qualificatore LGUN. Solo campione spontaneo: nei campioni
-    // strumentati (cateterismo, washing, alte vie) i frammenti papillari sono attesi
-    // o artefattuali → promemoria descrittivo, non qualificatore diagnostico.
+    // Regola 6 — LGUN non e' piu' una categoria autonoma in TPS 2.0. Un autentico
+    // asse fibrovascolare con cellule blande puo' essere segnalato sotto NHGUC anche
+    // nei campioni strumentati, con la dovuta cautela morfologico-clinica.
     if (!out.categoria && reperti.papillareFibrovascolare) {
-      if (input.campione === 'spontanea') {
-        out.categoria = 'NHGUC';
-        out.qualificatore = 'LGUN';
-        out.motivazione.push('Frammenti papillari con asse fibrovascolare in campione spontaneo');
-      } else {
-        out.promemoria.push('Frammenti papillari con asse fibrovascolare: reperto atteso o da correlare in campione strumentato, non qualificato come LGUN.');
-      }
+      out.categoria = 'NHGUC';
+      out.qualificatore = 'LGUN';
+      out.motivazione.push('Frammenti papillari con autentico asse fibrovascolare e citologia di basso grado');
+      if (input.campione !== 'spontanea')
+        out.promemoria.push('Campione strumentato: distinguere un autentico asse fibrovascolare dagli aggregati papillaroidi da strumentazione e correlare con il quadro endoscopico.');
     }
 
     // Regola 7 — default
@@ -161,10 +151,15 @@
       });
     }
 
+    if (reperti.squamoseAtipiche)
+      out.promemoria.push('Cellule squamose atipiche: descrivere separatamente; non includere nella categoria AUC.');
+    if (reperti.ghiandolariAtipiche)
+      out.promemoria.push('Cellule ghiandolari atipiche: descrivere separatamente; non includere nella categoria AUC.');
+
     return out;
   }
 
-  var api = { CATEGORIE: CATEGORIE, criteriLevel: criteriLevel, sogliaEffettiva: sogliaEffettiva, classify: classify };
+  var api = { CATEGORIE: CATEGORIE, criteriLevel: criteriLevel, classify: classify };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else { root.TPS = root.TPS || {}; for (var k in api) root.TPS[k] = api[k]; }

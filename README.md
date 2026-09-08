@@ -5,6 +5,11 @@ citologica secondo il Sistema di Parigi 2ª edizione (2022) e la generazione del
 
 Asse clinico: **alto grado vs non alto grado** (rule-out del carcinoma uroteliale di alto grado).
 
+La versione 0.3 applica la regola TPS 2.0 di almeno due fra i tre criteri nucleari,
+senza rendere obbligatoria l'ipercromasia. La distinzione SHGUC/HGUC usa “poche”
+versus “molte” cellule diagnostiche e non un cutoff numerico rigido; la decisione deve
+integrare intensità dell'atipia, tipo di campione e contesto clinico.
+
 ## Uso
 
 Aprire `index.html` in un browser (doppio clic) oppure installarla come PWA da

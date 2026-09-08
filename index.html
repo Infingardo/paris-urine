@@ -82,7 +82,7 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
     </div>
 
     <div class="field checks">
-      <label><input type="checkbox" id="cellularitaAdeguata" checked> Cellularità adeguata</label>
+      <label><input type="checkbox" id="cellularitaAdeguata" checked> Adeguatezza verificata secondo tipo e preparazione del campione</label>
     </div>
 
     <div class="field">
@@ -118,15 +118,15 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
       <label><input type="checkbox" id="car-ipercromasia"> Ipercromasia</label>
       <label><input type="checkbox" id="car-membrana"> Membrana nucleare irregolare</label>
       <label><input type="checkbox" id="car-cromatina"> Cromatina grossolana</label>
-      <div class="hint">Criteri completi = ipercromasia + almeno uno tra membrana e cromatina.</div>
+      <div class="hint">Asse HGUC/SHGUC: almeno due dei tre criteri. L’ipercromasia non è obbligatoria.</div>
     </div>
 
     <div class="field">
       <label for="nCellule">Numero di cellule della popolazione atipica</label>
       <select id="nCellule">
         <option value="0">Nessuna</option>
-        <option value="sottoSoglia">1 – sotto soglia</option>
-        <option value="pariOSopraSoglia">Pari o sopra soglia</option>
+        <option value="sottoSoglia">Poche (“few”)</option>
+        <option value="pariOSopraSoglia">Numerose (“many”)</option>
       </select>
       <div class="hint" id="hint-soglia"></div>
     </div>
@@ -146,14 +146,6 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
       <input type="text" id="nonUrotelialeTipo" placeholder="es. adenocarcinoma, carcinoma squamoso, metastasi…">
     </div>
 
-    <div class="field">
-      <label for="sogliaLabBasseVie">Soglia quantitativa HGUC — basse vie (impostazione)</label>
-      <select id="sogliaLabBasseVie">
-        <option value="5">5 cellule (default prudenziale)</option>
-        <option value="10">10 cellule</option>
-      </select>
-      <div class="hint">Per le alte vie la soglia è fissata a 10 e non modificabile.</div>
-    </div>
   </section>
 
   <section class="panel" id="result-panel">
@@ -193,7 +185,7 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
     <dt>SHGUC — Sospetto per alto grado</dt>
     <dd>Criteri qualitativi completi per alto grado, ma numero di cellule inferiore alla soglia quantitativa.</dd>
     <dt>HGUC — Carcinoma uroteliale di alto grado</dt>
-    <dd>Criteri completi <b>e</b> numero di cellule ≥ soglia quantitativa.</dd>
+    <dd>Criteri completi in numerose cellule diagnostiche (“many”), integrando intensità dell’atipia, tipo di campione e contesto clinico.</dd>
     <dt>Altre neoplasie</dt>
     <dd>Cellule non uroteliali maligne (squamose, ghiandolari, piccole cellule, metastasi).</dd>
     <dt>Qualificatore LGUN</dt>
@@ -201,16 +193,16 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
   </dl>
 
   <h4>Criteri nucleari (HGUC / SHGUC)</h4>
-  <p>N/C ≥ 0,7 <b>e</b> ipercromasia <b>e</b> almeno uno tra membrana nucleare irregolare / cromatina grossolana.</p>
-  <p>L'N/C alto isolato o l'ipercromasia isolata non bastano.</p>
-  <p>Criteri incompleti con N/C ≥ 0,7 → <b>AUC</b> con alert per possibile elevazione manuale a SHGUC secondo giudizio.</p>
+  <p>N/C ≥ 0,7 <b>e almeno due dei tre</b>: ipercromasia moderata-severa, membrana nucleare irregolare, cromatina irregolare grossolana/addensata.</p>
+  <p>L’ipercromasia non è obbligatoria: esistono HGUC ipo-/normocromatici. L'N/C alto isolato non basta neppure per AUC.</p>
+  <p>Un solo criterio nucleare con N/C ≥ 0,7 → <b>AUC</b>.</p>
 
   <h4>HGUC vs SHGUC</h4>
-  <p>Stessi criteri qualitativi: la differenza è quantitativa — numero di cellule atipiche rispetto alla soglia di laboratorio (5–10, lab-dipendente).</p>
-  <p>In questa app: <b>5</b> per le basse vie (impostabile a 10), <b>10 forzato</b> per le alte vie.</p>
+  <p>Stessi criteri qualitativi: SHGUC contiene “poche” cellule diagnostiche, HGUC “molte”. TPS 2.0 non supporta un cutoff numerico assoluto.</p>
+  <p>La scelta deve integrare quantità, intensità dell’atipia, tipo di campione e contesto clinico.</p>
 
   <h4>Adeguatezza</h4>
-  <p>TPS 2022 non impone un numero minimo di cellule: valutazione complessiva di volume, cellularità e conservazione.</p>
+  <p>TPS 2.0 propone criteri orientativi: urine spontanee &gt;25 mL (ThinPrep) o &gt;30 mL (SurePath); campioni strumentati &gt;20 cellule uroteliali/10 HPF, 10–20 limitati, &lt;10 non diagnostici.</p>
   <p>La presenza di cellule francamente sospette o maligne, con criteri SHGUC/HGUC, rende il campione diagnostico per quella categoria anche se limitato. Atipie minori / AUC <b>non</b> superano automaticamente una grave inadeguatezza del campione.</p>
 
   <h4>Fattori confondenti</h4>
@@ -218,10 +210,10 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
   <p>Non declassano automaticamente: generano un avviso. L'eventuale riclassificazione è scelta esplicita del citopatologo.</p>
 </aside>
 
-<script src="tps-data.js?v=0.2.0"></script>
-<script src="classifier.js?v=0.2.0"></script>
-<script src="referto.js?v=0.2.0"></script>
-<script src="app.js?v=0.2.0"></script>
+<script src="tps-data.js?v=0.3.0"></script>
+<script src="classifier.js?v=0.3.0"></script>
+<script src="referto.js?v=0.3.0"></script>
+<script src="app.js?v=0.3.0"></script>
 <script>
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
