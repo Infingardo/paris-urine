@@ -26,11 +26,28 @@
 
     if ((input.nCellule || '0') === '0') {
       righe.push('Non si osservano cellule uroteliali atipiche di rilievo.');
-    } else {
-      var crit = frasiCaratteri(input.caratteri);
+      return righe.join(' ');
+    }
+
+    // "Atipica" e il quantificatore "few"/"many" sono terminologia TPS specifica
+    // dell'asse AUC/SHGUC/HGUC: usarli quando la categoria finale è NHGUC descrive
+    // come sospetta una popolazione che il classificatore ha già escluso, e il
+    // quantificatore "few/many" discrimina propriamente solo tra SHGUC e HGUC.
+    var categoria = result.categoria;
+    var asseAltoGrado = categoria === 'SHGUC' || categoria === 'HGUC';
+    var atipica = asseAltoGrado || categoria === 'AUC';
+    var crit = frasiCaratteri(input.caratteri);
+
+    if (atipica) {
       righe.push('Popolazione uroteliale atipica con rapporto N/C ' +
         DATA.ncLabel[input.ncRatio || '<0.5'] +
         (crit.length ? '; si osservano ' + join(crit) : ' senza atipie nucleari di rilievo') + '.');
+    } else {
+      righe.push('Popolazione uroteliale esente da atipie nucleari significative (rapporto N/C ' +
+        DATA.ncLabel[input.ncRatio || '<0.5'] + '), con aspetti compatibili con modificazioni reattive.');
+    }
+
+    if (asseAltoGrado) {
       righe.push(input.nCellule === 'pariOSopraSoglia'
         ? 'Le cellule diagnostiche sono numerose (“many” secondo TPS 2.0).'
         : 'Le cellule diagnostiche sono poche (“few” secondo TPS 2.0).');

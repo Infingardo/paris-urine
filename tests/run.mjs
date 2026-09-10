@@ -289,6 +289,27 @@ const tK = buildReferto(iK, classify(iK), {});
 check('K — frase criteri', /Popolazione uroteliale atipica con rapporto N\/C ≥ 0,7; si osservano ipercromasia e membrana nucleare irregolare\./.test(tK));
 check('K — frase quantità separata', /Le cellule diagnostiche sono poche \(“few” secondo TPS 2\.0\)\./.test(tK));
 
+// M — NHGUC con popolazione a N/C basso: niente "atipica", niente quantificatore
+// few/many (terminologia TPS specifica dell'asse SHGUC/HGUC, fuorviante su un
+// esito negativo — vedi revisione "avvocato del diavolo" del 2026-09-10).
+const iM = inp({ campione: 'spontanea', ncRatio: '<0.5', caratteri: {}, nCellule: 'sottoSoglia' });
+const rM = classify(iM);
+eq('M — categoria NHGUC', rM.categoria, 'NHGUC');
+const tM = buildReferto(iM, rM, {});
+check('M — nessuna dicitura "atipica"', !/atipica/.test(tM));
+check('M — nessun quantificatore few/many', !/“(few|many)”/.test(tM));
+check('M — frase reattiva presente',
+  /Popolazione uroteliale esente da atipie nucleari significative \(rapporto N\/C < 0,5\), con aspetti compatibili con modificazioni reattive\./.test(tM));
+
+// N — AUC: "atipica" è corretto (è la categoria), ma few/many non si applica
+// (quel quantificatore discrimina solo SHGUC da HGUC, non l'asse AUC).
+const iN = inp({ campione: 'spontanea', ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia' });
+const rN = classify(iN);
+eq('N — categoria AUC', rN.categoria, 'AUC');
+const tN = buildReferto(iN, rN, {});
+check('N — dicitura "atipica" presente', /Popolazione uroteliale atipica/.test(tN));
+check('N — nessun quantificatore few/many su AUC', !/“(few|many)”/.test(tN));
+
 // J — oscuramento severo + AUC-morfologia → ND, adeguatezza dice "non valutabile per <causa>"
 const iJ = inp({ campione: 'spontanea', oscuramento: 'severo', oscuramentoCausa: 'sangue',
   ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia' });
