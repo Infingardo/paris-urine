@@ -14,6 +14,12 @@ La versione 0.3.1 corregge il testo del referto per gli esiti negativi: "atipica
 quantificatore "poche/molte" sono terminologia TPS specifica dell'asse AUC/SHGUC/HGUC,
 non descrittori generici — un caso NHGUC non li usa più.
 
+La versione 0.3.2 aggiunge l'ingresso qualitativo a SHGUC: cellule con criteri completi ma
+degenerate o mal preservate restano SHGUC anche se numerose. La soglia quantitativa è mostrata
+come orientativa (≈5–10 cellule nelle basse vie, ≥10 nelle alte vie, da TPS 1.0; TPS 2.0 non
+impone un cutoff rigido). L'avviso da confondente suggerisce di scendere di un solo gradino.
+Il service worker non si registra più nelle anteprime in iframe.
+
 ## Uso
 
 Aprire `index.html` in un browser (doppio clic) oppure installarla come PWA da

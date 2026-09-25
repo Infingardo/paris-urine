@@ -51,6 +51,8 @@
       righe.push(input.nCellule === 'pariOSopraSoglia'
         ? 'Le cellule diagnostiche sono numerose (“many” secondo TPS 2.0).'
         : 'Le cellule diagnostiche sono poche (“few” secondo TPS 2.0).');
+      if (input.celluleDegenerate && categoria === 'SHGUC')
+        righe.push('Le cellule diagnostiche presentano alterazioni degenerative/preservazione subottimale che ne limitano la valutazione.');
     }
     return righe.join(' ');
   }

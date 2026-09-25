@@ -126,10 +126,14 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
       <label for="nCellule">Numero di cellule della popolazione atipica</label>
       <select id="nCellule">
         <option value="0">Nessuna</option>
-        <option value="sottoSoglia">Poche (“few”)</option>
-        <option value="pariOSopraSoglia">Numerose (“many”)</option>
+        <option value="sottoSoglia">Sotto la soglia quantitativa per HGUC</option>
+        <option value="pariOSopraSoglia">Pari o sopra la soglia quantitativa per HGUC</option>
       </select>
       <div class="hint" id="hint-soglia"></div>
+    </div>
+    <div class="field checks">
+      <label><input type="checkbox" id="celluleDegenerate"> Cellule diagnostiche degenerate / preservazione subottimale</label>
+      <div class="hint">Se attivo, con criteri completi la categoria resta SHGUC anche con cellule numerose.</div>
     </div>
 
     <div class="field checks">
@@ -183,7 +187,7 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
     <dt>AUC — Cellule uroteliali atipiche</dt>
     <dd>N/C ≥ 0,5 con almeno un criterio nucleare, insufficiente per SHGUC. Categoria da usare con parsimonia, quando le alterazioni superano il benigno ma non soddisfano SHGUC/HGUC.</dd>
     <dt>SHGUC — Sospetto per alto grado</dt>
-    <dd>Criteri qualitativi completi per alto grado, ma numero di cellule inferiore alla soglia quantitativa.</dd>
+    <dd>Criteri qualitativi per alto grado, ma cellule sotto la soglia quantitativa per HGUC, oppure valutazione limitata da degenerazione / preservazione subottimale.</dd>
     <dt>HGUC — Carcinoma uroteliale di alto grado</dt>
     <dd>Criteri completi in numerose cellule diagnostiche (“many”), integrando intensità dell’atipia, tipo di campione e contesto clinico.</dd>
     <dt>Altre neoplasie</dt>
@@ -210,12 +214,16 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
   <p>Non declassano automaticamente: generano un avviso. L'eventuale riclassificazione è scelta esplicita del citopatologo.</p>
 </aside>
 
-<script src="tps-data.js?v=0.3.1"></script>
-<script src="classifier.js?v=0.3.1"></script>
-<script src="referto.js?v=0.3.1"></script>
-<script src="app.js?v=0.3.1"></script>
+<script src="tps-data.js?v=0.3.2"></script>
+<script src="classifier.js?v=0.3.2"></script>
+<script src="referto.js?v=0.3.2"></script>
+<script src="app.js?v=0.3.2"></script>
 <script>
-if ('serviceWorker' in navigator) {
+// Registra il SW solo come app autonoma: non in anteprime/iframe e solo su https o localhost.
+var swConsentito = 'serviceWorker' in navigator &&
+  window.self === window.top &&
+  (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+if (swConsentito) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./sw.js')
       .then(function (r) { console.log('SW registrato:', r.scope); })

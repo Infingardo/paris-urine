@@ -62,6 +62,7 @@
         cromatinaGrossolana: $('car-cromatina').checked
       },
       nCellule: $('nCellule').value,
+      celluleDegenerate: $('celluleDegenerate').checked,
       reperti: {
         papillareFibrovascolare: $('rep-papillare').checked,
         squamoseAtipiche: $('rep-squamose').checked,
@@ -85,8 +86,9 @@
     return false;
   }
 
-  function etichettaSoglia() {
-    $('hint-soglia').textContent = 'TPS 2.0 non fissa un cutoff assoluto: integrare quantità, qualità dell’atipia, campione e contesto clinico.';
+  function etichettaSoglia(input) {
+    $('hint-soglia').textContent = TPS.sogliaOrientativa(input.campione) +
+      ' Integrare intensità dell’atipia e contesto clinico.';
   }
 
   function hintCampione(input) {
@@ -153,7 +155,7 @@
   function aggiorna() {
     var input = leggiInput();
     if (sincronizzaVincoli(input)) input = leggiInput();
-    etichettaSoglia();
+    etichettaSoglia(input);
     hintCampione(input);
     var result = TPS.classify(input);
     render(input, result);
@@ -167,7 +169,7 @@
   // ── Eventi ───────────────────────────────────────────
   ['campione','cellularitaAdeguata','oscuramento','ncRatio',
    'osc-sangue','osc-flogosi','osc-cristalli','osc-batteri','osc-conservazione','osc-degenerazione','osc-altro',
-   'car-ipercromasia','car-membrana','car-cromatina','nCellule',
+   'car-ipercromasia','car-membrana','car-cromatina','nCellule','celluleDegenerate',
    'rep-papillare','rep-squamose','rep-ghiandolari','rep-nonuroteliale','rep-polyoma','rep-terapia','rep-litiasi',
    'nonUrotelialeTipo'].forEach(function (id) {
     var el = $(id);

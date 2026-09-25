@@ -22,6 +22,25 @@
       throw new RangeError('oscuramento non valido: ' + JSON.stringify(input.oscuramento));
   }
 
+  // Soglia quantitativa ORIENTATIVA tra SHGUC e HGUC. Valori da TPS 1.0
+  // (5–10 cellule basse vie, >=10 alte vie); TPS 2.0 riconosce dati insufficienti
+  // e non impone un cutoff rigido. Usata solo per testi di aiuto, mai per classificare.
+  function sogliaOrientativa(campione) {
+    if (campione === 'alteVie')
+      return 'Orientativo: ≥10 cellule diagnostiche nelle alte vie (TPS 1.0). TPS 2.0 non fissa un cutoff rigido.';
+    return 'Orientativo: ~5–10 cellule diagnostiche nelle basse vie (TPS 1.0). TPS 2.0 non fissa un cutoff rigido.' +
+      (campione === 'cateterismo' || campione === 'washing'
+        ? ' Campione strumentato: maggiore cautela prima di HGUC.' : '');
+  }
+
+  function elencoCriteri(caratteri) {
+    var c = [];
+    if (caratteri.ipercromasia) c.push('ipercromasia');
+    if (caratteri.membranaIrregolare) c.push('membrana nucleare irregolare');
+    if (caratteri.cromatinaGrossolana) c.push('cromatina grossolana');
+    return c.join(' + ');
+  }
+
   // 'assenti' | 'parziali' | 'completi'
   // completi = almeno due dei tre criteri TPS 2.0. L'ipercromasia non e'
   // obbligatoria: esistono HGUC ipo-/normocromatici.
@@ -64,17 +83,27 @@
     // Senza popolazione atipica (nCellule = 0) i rami di alto grado e AUC non si applicano.
     var popolazioneAtipica = nCel !== '0';
 
-    // Regole 2–3 — asse di alto grado. TPS 2.0 non sostiene un cutoff numerico
-    // rigido: SHGUC = poche cellule diagnostiche; HGUC = molte cellule diagnostiche.
+    // Regole 2–3 — asse di alto grado. Il confine SHGUC/HGUC e' quantitativo
+    // (sotto/sopra soglia per HGUC), ma SHGUC accoglie anche cellule con criteri
+    // completi la cui valutazione e' limitata da degenerazione/preservazione
+    // subottimale: in quel caso HGUC e' bloccato indipendentemente dal numero.
     if (popolazioneAtipica && nc === '>=0.7' && crit === 'completi') {
-      if (nCel === 'pariOSopraSoglia') {
+      var criteriTxt = elencoCriteri(caratteri);
+      var degenerate = !!input.celluleDegenerate;
+      if (nCel === 'pariOSopraSoglia' && !degenerate) {
         out.categoria = 'HGUC';
-        out.motivazione.push('N/C ≥ 0.7', 'ipercromasia + (membrana irregolare o cromatina grossolana)',
-          'numerose cellule diagnostiche (“many” secondo TPS 2.0)');
+        out.motivazione.push('N/C ≥ 0.7', criteriTxt,
+          'cellule diagnostiche sopra la soglia quantitativa per HGUC');
+        if (input.campione === 'cateterismo' || input.campione === 'washing')
+          out.promemoria.push('Campione strumentato: escludere gruppi di cellule basali/intermedie e artefatti da strumentazione prima di confermare HGUC.');
       } else {
         out.categoria = 'SHGUC';
-        out.motivazione.push('N/C ≥ 0.7', 'criteri nucleari completi',
-          'poche cellule diagnostiche (“few” secondo TPS 2.0) → SHGUC anziché HGUC');
+        out.motivazione.push('N/C ≥ 0.7', criteriTxt);
+        if (degenerate)
+          out.motivazione.push('cellule diagnostiche degenerate / preservazione subottimale → SHGUC anziché HGUC' +
+            (nCel === 'pariOSopraSoglia' ? ' (anche se numerose)' : ''));
+        else
+          out.motivazione.push('cellule diagnostiche sotto la soglia quantitativa per HGUC → SHGUC');
       }
     }
 
@@ -139,7 +168,8 @@
         tipo: 'confondente',
         messaggio: 'Polyomavirus/decoy cells o effetto terapia segnalati: possibile mimica di HGUC. ' +
                    'Il confondente può coesistere con un carcinoma vero.',
-        azioneSuggerita: 'AUC'
+        // Un gradino sotto la categoria proposta; mai automatico.
+        azioneSuggerita: out.categoria === 'HGUC' ? 'SHGUC' : (out.categoria === 'SHGUC' ? 'AUC' : 'NHGUC')
       });
     }
 
@@ -159,7 +189,7 @@
     return out;
   }
 
-  var api = { CATEGORIE: CATEGORIE, criteriLevel: criteriLevel, classify: classify };
+  var api = { CATEGORIE: CATEGORIE, criteriLevel: criteriLevel, sogliaOrientativa: sogliaOrientativa, classify: classify };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else { root.TPS = root.TPS || {}; for (var k in api) root.TPS[k] = api[k]; }
