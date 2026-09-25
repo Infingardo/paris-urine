@@ -381,6 +381,38 @@ section('riclassificazione manuale');
   eq('categoria morfologica intatta dopo il declassamento', rDn.categoria, 'HGUC');
 }
 
+section('0.3.2 — degenerazione, soglia orientativa, confondente su HGUC');
+{
+  const { sogliaOrientativa } = require('../classifier.js');
+  const base = { ncRatio: '>=0.7', caratteri: { membranaIrregolare: true, cromatinaGrossolana: true } };
+
+  const rMany = classify(inp({ ...base, nCellule: 'pariOSopraSoglia' }));
+  eq('criteri completi + sopra soglia → HGUC', rMany.categoria, 'HGUC');
+  check('motivazione HGUC elenca i criteri effettivi (niente ipercromasia fittizia)',
+    rMany.motivazione.includes('membrana nucleare irregolare + cromatina grossolana') &&
+    !rMany.motivazione.some(m => /ipercromasia/.test(m)));
+
+  const iDeg = inp({ ...base, nCellule: 'pariOSopraSoglia', celluleDegenerate: true });
+  const rDeg = classify(iDeg);
+  eq('criteri completi + sopra soglia + degenerate → SHGUC', rDeg.categoria, 'SHGUC');
+  check('motivazione cita la degenerazione', rDeg.motivazione.some(m => /degenerate/.test(m)));
+  check('referto cita la degenerazione', /alterazioni degenerative/.test(buildReferto(iDeg, rDeg, {})));
+
+  eq('degenerate + sotto soglia → SHGUC', classify(inp({ ...base, nCellule: 'sottoSoglia', celluleDegenerate: true })).categoria, 'SHGUC');
+  eq('degenerate non eleva AUC', classify(inp({ ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia', celluleDegenerate: true })).categoria, 'AUC');
+
+  const rHpoly = classify(inp({ ...base, nCellule: 'pariOSopraSoglia', reperti: { polyoma: true } }));
+  eq('HGUC + confondente: categoria invariata', rHpoly.categoria, 'HGUC');
+  eq('HGUC + confondente: suggerisce SHGUC', rHpoly.alert.find(a => a.tipo === 'confondente').azioneSuggerita, 'SHGUC');
+  const rApoly = classify(inp({ ncRatio: '0.5-0.7', caratteri: { ipercromasia: true }, nCellule: 'sottoSoglia', reperti: { polyoma: true } }));
+  eq('AUC + confondente: suggerisce NHGUC', rApoly.alert.find(a => a.tipo === 'confondente').azioneSuggerita, 'NHGUC');
+
+  check('HGUC su washing → promemoria strumentazione',
+    classify(inp({ ...base, campione: 'washing', nCellule: 'pariOSopraSoglia' })).promemoria.some(p => /strumentazione/.test(p)));
+  check('soglia alte vie ≥10', /≥10/.test(sogliaOrientativa('alteVie')));
+  check('soglia basse vie 5–10', /5–10/.test(sogliaOrientativa('spontanea')));
+}
+
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
 if (failures.length) { console.log('\nFallimenti:'); failures.forEach(f => console.log('  ✗ ' + f)); }
 process.exit(fail === 0 ? 0 : 1);
