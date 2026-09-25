@@ -20,6 +20,10 @@ come orientativa (≈5–10 cellule nelle basse vie, ≥10 nelle alte vie, da TP
 impone un cutoff rigido). L'avviso da confondente suggerisce di scendere di un solo gradino.
 Il service worker non si registra più nelle anteprime in iframe.
 
+La versione 0.3.3 gradua l'ipercromasia: lieve-moderata conta solo come criterio di AUC,
+moderata-severa come criterio di alto grado (SHGUC/HGUC). Il confine AUC/SHGUC resta
+qualitativo (N/C e numero/intensità dei criteri), non numerico.
+
 ## Uso
 
 Aprire `index.html` in un browser (doppio clic) oppure installarla come PWA da

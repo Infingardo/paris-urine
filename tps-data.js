@@ -5,7 +5,7 @@
     // Fonte unica della versione. Deve restare allineata a package.json, ai
     // parametri ?v= degli script in index.html e a VERSION in sw.js: il test
     // 'coerenza versione' in tests/run.mjs fallisce se divergono.
-    versione: '0.3.2',
+    versione: '0.3.3',
     categoriaEstesa: {
       NON_DIAGNOSTICO: 'Non diagnostico/inadeguato (ND)',
       NHGUC: 'Negativo per carcinoma uroteliale di alto grado (NHGUC)',
@@ -30,6 +30,8 @@
     },
     criterioLabel: {
       ipercromasia: 'ipercromasia',
+      ipercromasiaLieve: 'ipercromasia lieve-moderata',
+      ipercromasiaSevera: 'ipercromasia moderata-severa',
       membranaIrregolare: 'membrana nucleare irregolare',
       cromatinaGrossolana: 'cromatina grossolana'
     },

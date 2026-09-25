@@ -57,7 +57,7 @@
       oscuramentoCausa: causeOscuramento(),
       ncRatio: $('ncRatio').value,           // i value dell'option sono già '<0.5' / '0.5-0.7' / '>=0.7'
       caratteri: {
-        ipercromasia: $('car-ipercromasia').checked,
+        ipercromasia: $('car-ipercromasia').value || false,
         membranaIrregolare: $('car-membrana').checked,
         cromatinaGrossolana: $('car-cromatina').checked
       },
@@ -182,6 +182,7 @@
     $('campione').value = 'spontanea';
     $('oscuramento').value = 'assente-lieve';
     $('ncRatio').value = '<0.5';
+    $('car-ipercromasia').value = '';
     $('nCellule').value = '0';
     stato.manualCategory = null; stato.manualReason = '';
     aggiorna();

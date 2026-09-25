@@ -7,6 +7,16 @@
   var NCEL_VALIDI = { '0': 1, sottoSoglia: 1, pariOSopraSoglia: 1 };
   var CAMPIONI_VALIDI = { spontanea: 1, cateterismo: 1, washing: 1, alteVie: 1 };
   var OSCURAMENTO_VALIDI = { 'assente-lieve': 1, moderato: 1, severo: 1 };
+  // Ipercromasia graduata (TPS): 'lieve' = lieve-moderata (criterio solo per AUC),
+  // 'severa' = moderata-severa (criterio per l'asse di alto grado). true e' accettato
+  // per retrocompatibilita' ed equivale a 'severa'; false/'' = assente.
+  var IPER_VALIDI = { lieve: 1, severa: 1 };
+
+  function iperGrado(v) {
+    if (v === true || v === 'severa') return 'severa';
+    if (v === 'lieve') return 'lieve';
+    return null;
+  }
 
   // Rifiuta esplicitamente enum malformati: meglio un errore visibile che una
   // classificazione silenziosa verso la categoria più benigna. I campi assenti
@@ -20,6 +30,9 @@
       throw new RangeError('campione non valido: ' + JSON.stringify(input.campione));
     if (input.oscuramento != null && !OSCURAMENTO_VALIDI[input.oscuramento])
       throw new RangeError('oscuramento non valido: ' + JSON.stringify(input.oscuramento));
+    var ip = input.caratteri && input.caratteri.ipercromasia;
+    if (typeof ip === 'string' && ip !== '' && !IPER_VALIDI[ip])
+      throw new RangeError('ipercromasia non valida: ' + JSON.stringify(ip));
   }
 
   // Soglia quantitativa ORIENTATIVA tra SHGUC e HGUC. Valori da TPS 1.0
@@ -35,22 +48,25 @@
 
   function elencoCriteri(caratteri) {
     var c = [];
-    if (caratteri.ipercromasia) c.push('ipercromasia');
+    var g = iperGrado(caratteri.ipercromasia);
+    if (g) c.push(g === 'severa' ? 'ipercromasia moderata-severa' : 'ipercromasia lieve-moderata');
     if (caratteri.membranaIrregolare) c.push('membrana nucleare irregolare');
     if (caratteri.cromatinaGrossolana) c.push('cromatina grossolana');
     return c.join(' + ');
   }
 
   // 'assenti' | 'parziali' | 'completi'
-  // completi = almeno due dei tre criteri TPS 2.0. L'ipercromasia non e'
-  // obbligatoria: esistono HGUC ipo-/normocromatici.
+  // completi = almeno due dei tre criteri di ALTO GRADO (TPS 2.0): ipercromasia
+  // moderata-severa, membrana irregolare, cromatina grossolana. L'ipercromasia non
+  // e' obbligatoria (esistono HGUC ipo-/normocromatici), ma quella lieve-moderata
+  // conta solo come criterio di AUC, non di alto grado.
   function criteriLevel(caratteri) {
     caratteri = caratteri || {};
-    var iper = !!caratteri.ipercromasia;
+    var g = iperGrado(caratteri.ipercromasia);
     var memb = !!caratteri.membranaIrregolare;
     var crom = !!caratteri.cromatinaGrossolana;
-    if (!iper && !memb && !crom) return 'assenti';
-    if (Number(iper) + Number(memb) + Number(crom) >= 2) return 'completi';
+    if (!g && !memb && !crom) return 'assenti';
+    if (Number(g === 'severa') + Number(memb) + Number(crom) >= 2) return 'completi';
     return 'parziali';
   }
 
@@ -131,7 +147,7 @@
         out.motivazione.push('N/C ≥ 0.7 ma criteri nucleari incompleti');
         out.alert.push({
           tipo: 'criteriParziali',
-          messaggio: 'N/C ≥ 0.7 con criteri nucleari incompleti: considerare SHGUC secondo giudizio se l’atipia è marcata.',
+          messaggio: 'N/C ≥ 0.7 con criteri nucleari di alto grado incompleti (l’ipercromasia lieve-moderata non conta per l’alto grado): considerare SHGUC secondo giudizio se l’atipia è marcata.',
           azioneSuggerita: 'SHGUC'
         });
       } else if (nc === '>=0.7' && crit === 'assenti') {

@@ -116,10 +116,15 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
 
     <div class="field checks">
       <label>Criteri nucleari</label>
-      <label><input type="checkbox" id="car-ipercromasia"> Ipercromasia</label>
+      <label for="car-ipercromasia" style="display:block">Ipercromasia (vs cellule uroteliali benigne o squamose come controllo interno)</label>
+      <select id="car-ipercromasia" style="width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);margin-bottom:4px">
+        <option value="">Assente</option>
+        <option value="lieve">Lieve-moderata (criterio solo per AUC)</option>
+        <option value="severa">Moderata-severa (criterio di alto grado)</option>
+      </select>
       <label><input type="checkbox" id="car-membrana"> Membrana nucleare irregolare</label>
       <label><input type="checkbox" id="car-cromatina"> Cromatina grossolana</label>
-      <div class="hint">Asse HGUC/SHGUC: almeno due dei tre criteri. L’ipercromasia non è obbligatoria.</div>
+      <div class="hint">Asse HGUC/SHGUC: almeno due dei tre criteri di alto grado; l’ipercromasia conta solo se moderata-severa e non è obbligatoria. AUC: un solo criterio, anche ipercromasia lieve-moderata.</div>
     </div>
 
     <div class="field">
@@ -185,7 +190,7 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
     <dt>NHGUC — Negativo per alto grado</dt>
     <dd>Assenza di criteri per AUC o categoria superiore. Include quadri reattivi, litiasici, post-terapia, virali.</dd>
     <dt>AUC — Cellule uroteliali atipiche</dt>
-    <dd>N/C ≥ 0,5 con almeno un criterio nucleare, insufficiente per SHGUC. Categoria da usare con parsimonia, quando le alterazioni superano il benigno ma non soddisfano SHGUC/HGUC.</dd>
+    <dd>N/C &gt; 0,5 con almeno un criterio nucleare (ipercromasia lieve-moderata, membrana irregolare o cromatina grossolana), insufficiente per SHGUC. Categoria da usare con parsimonia, quando le alterazioni superano il benigno ma non soddisfano SHGUC/HGUC.</dd>
     <dt>SHGUC — Sospetto per alto grado</dt>
     <dd>Criteri qualitativi per alto grado, ma cellule sotto la soglia quantitativa per HGUC, oppure valutazione limitata da degenerazione / preservazione subottimale.</dd>
     <dt>HGUC — Carcinoma uroteliale di alto grado</dt>
@@ -199,7 +204,9 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
   <h4>Criteri nucleari (HGUC / SHGUC)</h4>
   <p>N/C ≥ 0,7 <b>e almeno due dei tre</b>: ipercromasia moderata-severa, membrana nucleare irregolare, cromatina irregolare grossolana/addensata.</p>
   <p>L’ipercromasia non è obbligatoria: esistono HGUC ipo-/normocromatici. L'N/C alto isolato non basta neppure per AUC.</p>
-  <p>Un solo criterio nucleare con N/C ≥ 0,7 → <b>AUC</b>.</p>
+  <p>Un solo criterio di alto grado con N/C ≥ 0,7 → <b>AUC</b>. L’ipercromasia lieve-moderata non conta per l’alto grado.</p>
+  <h4>AUC vs SHGUC</h4>
+  <p>Confine qualitativo, non numerico: cambiano insieme N/C (&gt;0,5 vs ≥0,7) e numero/intensità dei criteri nucleari. Il numero di cellule non conta.</p>
 
   <h4>HGUC vs SHGUC</h4>
   <p>Stessi criteri qualitativi: SHGUC contiene “poche” cellule diagnostiche, HGUC “molte”. TPS 2.0 non supporta un cutoff numerico assoluto.</p>
@@ -214,10 +221,10 @@ textarea#referto{width:100%;min-height:280px;font-family:ui-monospace,Menlo,Cons
   <p>Non declassano automaticamente: generano un avviso. L'eventuale riclassificazione è scelta esplicita del citopatologo.</p>
 </aside>
 
-<script src="tps-data.js?v=0.3.2"></script>
-<script src="classifier.js?v=0.3.2"></script>
-<script src="referto.js?v=0.3.2"></script>
-<script src="app.js?v=0.3.2"></script>
+<script src="tps-data.js?v=0.3.3"></script>
+<script src="classifier.js?v=0.3.3"></script>
+<script src="referto.js?v=0.3.3"></script>
+<script src="app.js?v=0.3.3"></script>
 <script>
 // Registra il SW solo come app autonoma: non in anteprime/iframe e solo su https o localhost.
 var swConsentito = 'serviceWorker' in navigator &&

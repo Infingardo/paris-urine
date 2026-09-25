@@ -14,7 +14,10 @@
   function frasiCaratteri(caratteri) {
     caratteri = caratteri || {};
     var l = [];
-    ['ipercromasia', 'membranaIrregolare', 'cromatinaGrossolana'].forEach(function (k) {
+    var ip = caratteri.ipercromasia;
+    if (ip === true || ip === 'severa') l.push(DATA.criterioLabel.ipercromasiaSevera);
+    else if (ip === 'lieve') l.push(DATA.criterioLabel.ipercromasiaLieve);
+    ['membranaIrregolare', 'cromatinaGrossolana'].forEach(function (k) {
       if (caratteri[k]) l.push(DATA.criterioLabel[k]);
     });
     return l;
