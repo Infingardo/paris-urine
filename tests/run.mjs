@@ -286,7 +286,7 @@ check('I2 — la causa testuale non dirotta un ND da ipocellularità',
 const iK = inp({ campione: 'spontanea', ncRatio: '>=0.7',
   caratteri: { ipercromasia: true, membranaIrregolare: true }, nCellule: 'sottoSoglia' });
 const tK = buildReferto(iK, classify(iK), {});
-check('K — frase criteri', /Popolazione uroteliale atipica con rapporto N\/C ≥ 0,7; si osservano ipercromasia e membrana nucleare irregolare\./.test(tK));
+check('K — frase criteri', /Popolazione uroteliale atipica con rapporto N\/C ≥ 0,7; si osservano ipercromasia moderata-severa e membrana nucleare irregolare\./.test(tK));
 check('K — frase quantità separata', /Le cellule diagnostiche sono poche \(“few” secondo TPS 2\.0\)\./.test(tK));
 
 // M — NHGUC con popolazione a N/C basso: niente "atipica", niente quantificatore
@@ -411,6 +411,34 @@ section('0.3.2 — degenerazione, soglia orientativa, confondente su HGUC');
     classify(inp({ ...base, campione: 'washing', nCellule: 'pariOSopraSoglia' })).promemoria.some(p => /strumentazione/.test(p)));
   check('soglia alte vie ≥10', /≥10/.test(sogliaOrientativa('alteVie')));
   check('soglia basse vie 5–10', /5–10/.test(sogliaOrientativa('spontanea')));
+}
+
+section('0.3.3 — ipercromasia graduata');
+{
+  eq('lieve + membrana → parziali', criteriLevel({ ipercromasia: 'lieve', membranaIrregolare: true }), 'parziali');
+  eq('severa + membrana → completi', criteriLevel({ ipercromasia: 'severa', membranaIrregolare: true }), 'completi');
+  eq('true retrocompatibile = severa', criteriLevel({ ipercromasia: true, cromatinaGrossolana: true }), 'completi');
+  eq('solo lieve → parziali (vale per AUC)', criteriLevel({ ipercromasia: 'lieve' }), 'parziali');
+  eq('stringa vuota = assente', criteriLevel({ ipercromasia: '' }), 'assenti');
+
+  const rL = classify(inp({ ncRatio: '>=0.7', caratteri: { ipercromasia: 'lieve', membranaIrregolare: true }, nCellule: 'pariOSopraSoglia' }));
+  eq('N/C≥0.7 + lieve + membrana → AUC (non SHGUC/HGUC)', rL.categoria, 'AUC');
+  check('…con alert criteriParziali verso SHGUC', rL.alert.some(a => a.tipo === 'criteriParziali' && a.azioneSuggerita === 'SHGUC'));
+
+  eq('N/C≥0.7 + severa + membrana, sotto soglia → SHGUC',
+    classify(inp({ ncRatio: '>=0.7', caratteri: { ipercromasia: 'severa', membranaIrregolare: true }, nCellule: 'sottoSoglia' })).categoria, 'SHGUC');
+  eq('N/C 0.5–0.7 + solo ipercromasia lieve → AUC',
+    classify(inp({ ncRatio: '0.5-0.7', caratteri: { ipercromasia: 'lieve' }, nCellule: 'sottoSoglia' })).categoria, 'AUC');
+  eq('lieve + membrana + cromatina → completi (2 criteri HG senza ipercromasia)',
+    criteriLevel({ ipercromasia: 'lieve', membranaIrregolare: true, cromatinaGrossolana: true }), 'completi');
+
+  let err = null; try { classify(inp({ caratteri: { ipercromasia: 'forte' } })); } catch (e) { err = e; }
+  check('ipercromasia non valida → RangeError', err instanceof RangeError);
+
+  const iR = inp({ ncRatio: '>=0.7', caratteri: { ipercromasia: 'lieve', membranaIrregolare: true }, nCellule: 'sottoSoglia' });
+  check('referto riporta l’intensità', /ipercromasia lieve-moderata/.test(buildReferto(iR, classify(iR), {})));
+  const iS = inp({ ncRatio: '>=0.7', caratteri: { ipercromasia: 'severa', cromatinaGrossolana: true }, nCellule: 'pariOSopraSoglia' });
+  check('motivazione HGUC riporta ipercromasia moderata-severa', classify(iS).motivazione.some(m => /ipercromasia moderata-severa/.test(m)));
 }
 
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
