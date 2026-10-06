@@ -8,3 +8,4 @@ Pathology decision-support tool, published on GitHub Pages. Single-page HTML/JS,
 - After such a change, get an independent review against the agreed spec: `/verify-agent` in Claude Code, or a separate review pass against the cited source.
 - Keep logic separate from the UI where the code allows it. No fake precision: show uncertainty and equivocal results.
 - No patient data in code, tests, fixtures, docs or commit messages.
+- `AGENTS.md` is a copy of this file for Codex: keep the two aligned when you edit either.
