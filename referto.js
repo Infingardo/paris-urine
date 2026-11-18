@@ -24,8 +24,27 @@
   }
 
   function paragrafoCitomorfologico(input, result) {
+    // (a) Non diagnostico: nessuna descrizione citomorfologica. Un campione
+    // dichiarato non valutabile non puo' essere descritto come privo di atipie;
+    // resta solo la frase di adeguatezza.
+    if (result.categoria === 'NON_DIAGNOSTICO') return '';
+
     var righe = [];
     if (input.oscuramentoCausa) righe.push('Fondo con ' + input.oscuramentoCausa + '.');
+
+    // (b) Altre neoplasie: descrive le cellule neoplastiche non uroteliali invece
+    // della popolazione uroteliale. N/C e criteri solo se c'e' una popolazione inserita.
+    if (result.categoria === 'ALTRE_NEOPLASIE') {
+      var fr = 'Presenza di cellule neoplastiche di natura non uroteliale' +
+        (input.nonUrotelialeTipo ? ' (' + input.nonUrotelialeTipo + ')' : '');
+      if ((input.nCellule || '0') !== '0') {
+        var critN = frasiCaratteri(input.caratteri);
+        fr += ', con rapporto N/C ' + DATA.ncLabel[input.ncRatio || '<0.5'] +
+          (critN.length ? '; si osservano ' + join(critN) : '');
+      }
+      righe.push(fr + '.');
+      return righe.join(' ');
+    }
 
     if ((input.nCellule || '0') === '0') {
       righe.push('Non si osservano cellule uroteliali atipiche di rilievo.');
@@ -45,6 +64,12 @@
       righe.push('Popolazione uroteliale atipica con rapporto N/C ' +
         DATA.ncLabel[input.ncRatio || '<0.5'] +
         (crit.length ? '; si osservano ' + join(crit) : ' senza atipie nucleari di rilievo') + '.');
+    } else if (crit.length) {
+      // (c) NHGUC con criteri inseriti ma insufficienti per AUC: descrivere
+      // quanto osservato, senza "atipica" e senza negarlo.
+      righe.push('Popolazione uroteliale con ' +
+        join(['rapporto N/C ' + DATA.ncLabel[input.ncRatio || '<0.5']].concat(crit)) +
+        ', insufficiente per la categoria AUC; aspetti compatibili con modificazioni reattive.');
     } else {
       righe.push('Popolazione uroteliale esente da atipie nucleari significative (rapporto N/C ' +
         DATA.ncLabel[input.ncRatio || '<0.5'] + '), con aspetti compatibili con modificazioni reattive.');

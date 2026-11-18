@@ -28,6 +28,9 @@ La versione 0.3.4 corregge un difetto dell'interfaccia: una riclassificazione ma
 attiva anche dopo aver modificato i reperti, e il referto poteva riportare una categoria scelta
 su un quadro non più presente. Ora viene annullata (con avviso) se cambiano la categoria
 morfologica, l'alert che l'aveva proposta o il motivo.
+Il paragrafo descrittivo del referto non nega più atipie inserite: nel non diagnostico resta solo
+la frase di adeguatezza; nelle altre neoplasie si descrivono le cellule neoplastiche non uroteliali;
+in un NHGUC con criteri insufficienti per AUC si riportano i criteri osservati.
 
 ## Uso
 
