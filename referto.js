@@ -23,6 +23,11 @@
     return l;
   }
 
+  // Concordanza: "si osserva X" con un solo criterio, "si osservano X e Y" con piu'.
+  function siOsserva(list) {
+    return (list.length === 1 ? 'si osserva ' : 'si osservano ') + join(list);
+  }
+
   function paragrafoCitomorfologico(input, result) {
     // (a) Non diagnostico: nessuna descrizione citomorfologica. Un campione
     // dichiarato non valutabile non puo' essere descritto come privo di atipie;
@@ -40,7 +45,7 @@
       if ((input.nCellule || '0') !== '0') {
         var critN = frasiCaratteri(input.caratteri);
         fr += ', con rapporto N/C ' + DATA.ncLabel[input.ncRatio || '<0.5'] +
-          (critN.length ? '; si osservano ' + join(critN) : '');
+          (critN.length ? '; ' + siOsserva(critN) : '');
       }
       righe.push(fr + '.');
       return righe.join(' ');
@@ -63,7 +68,7 @@
     if (atipica) {
       righe.push('Popolazione uroteliale atipica con rapporto N/C ' +
         DATA.ncLabel[input.ncRatio || '<0.5'] +
-        (crit.length ? '; si osservano ' + join(crit) : ' senza atipie nucleari di rilievo') + '.');
+        (crit.length ? '; ' + siOsserva(crit) : ' senza atipie nucleari di rilievo') + '.');
     } else if (crit.length) {
       // (c) NHGUC con criteri inseriti ma insufficienti per AUC: descrivere
       // quanto osservato, senza "atipica" e senza negarlo.

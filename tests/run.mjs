@@ -520,6 +520,12 @@ section('0.3.4 — paragrafo citomorfologico coerente con i reperti');
   const tL = buildReferto(iL, rL, {});
   check('c — con LGUN: frase criteri + frase LGUN', /insufficiente per la categoria AUC/.test(tL) && /basso grado/.test(tL));
 
+  // concordanza singolare/plurale
+  const iS1 = inp({ ncRatio: '0.5-0.7', nCellule: 'sottoSoglia', caratteri: { ipercromasia: 'lieve' } });
+  check('AUC un criterio → "si osserva"', /; si osserva ipercromasia lieve-moderata\./.test(buildReferto(iS1, classify(iS1), {})));
+  const iS2 = inp({ reperti: { nonUroteliale: true }, ncRatio: '>=0.7', nCellule: 'sottoSoglia', caratteri: { cromatinaGrossolana: true } });
+  check('Altre neoplasie un criterio → "si osserva"', /; si osserva cromatina grossolana\./.test(buildReferto(iS2, classify(iS2), {})));
+
   // rami invariati
   const iH = inp({ ncRatio: '>=0.7', nCellule: 'pariOSopraSoglia', caratteri: { ipercromasia: 'severa', membranaIrregolare: true } });
   check('invariato — HGUC usa ancora "atipica" + many', /Popolazione uroteliale atipica.*“many”/.test(buildReferto(iH, classify(iH), {})));
