@@ -3,7 +3,12 @@
   var $ = function (id) { return document.getElementById(id); };
   var LS_TEMA = 'paris.tema';
 
-  var stato = { manualCategory: null, manualReason: '' };
+  // origine/alertTipo: categoria morfologica e alert da cui e' nata la scelta
+  // manuale; servono a invalidarla se il quadro cambia (TPS.sceltaManualeValida).
+  var stato = { manualCategory: null, manualReason: '', origine: null, alertTipo: null, avvisoAnnullata: false };
+  function azzeraManuale() {
+    stato.manualCategory = null; stato.manualReason = ''; stato.origine = null; stato.alertTipo = null;
+  }
 
   // ── Tema ───────────────────────────────────────────────
   function applicaTema(t) {
@@ -98,13 +103,6 @@
       : 'Adeguatezza orientativa: volume >25 mL con ThinPrep o >30 mL con SurePath.';
   }
 
-  // Motivo tracciato in Nota quando si accetta l'azione suggerita da un alert.
-  function motivoRiclassifica(a, input) {
-    if (a.tipo === 'confondente')
-      return input.reperti.polyoma ? 'polyomavirus/decoy cells' : 'effetto terapia';
-    return (TPS_DATA.motivoAlert && TPS_DATA.motivoAlert[a.tipo]) || '';
-  }
-
   // ── Render risultato ─────────────────────────────────
   function render(input, result) {
     var estesa = TPS_DATA.categoriaEstesa[stato.manualCategory || result.categoria] || (stato.manualCategory || result.categoria);
@@ -126,13 +124,15 @@
       // l'elevazione proposta da 'criteriParziali' (-> SHGUC) e' realmente
       // eseguibile, e non solo enunciata. Il declassamento resta uno dei due versi.
       if (a.azioneSuggerita && !stato.manualCategory) {
-        var motivo = motivoRiclassifica(a, input);
+        var motivo = TPS.motivoRiclassifica(a, input);
         var btn = document.createElement('button');
         btn.textContent = 'Riclassifica manualmente come ' + a.azioneSuggerita +
           (motivo ? ' — ' + motivo : '');
         btn.addEventListener('click', function () {
           stato.manualCategory = a.azioneSuggerita;
           stato.manualReason = motivo;
+          stato.origine = result.categoria;
+          stato.alertTipo = a.tipo;
           aggiorna();
         });
         d.appendChild(document.createElement('br'));
@@ -143,8 +143,14 @@
     if (stato.manualCategory) {
       var undo = document.createElement('button');
       undo.textContent = 'Annulla riclassificazione manuale';
-      undo.addEventListener('click', function () { stato.manualCategory = null; stato.manualReason = ''; aggiorna(); });
+      undo.addEventListener('click', function () { azzeraManuale(); aggiorna(); });
       ab.appendChild(undo);
+    }
+    if (stato.avvisoAnnullata) {
+      var av = document.createElement('div');
+      av.className = 'alert';
+      av.textContent = 'Riclassificazione manuale annullata: sono cambiati la categoria morfologica, l’alert che la proponeva o il motivo. Rivalutare.';
+      ab.appendChild(av);
     }
 
     var pb = $('risultato-promemoria'); pb.innerHTML = '';
@@ -158,6 +164,11 @@
     etichettaSoglia(input);
     hintCampione(input);
     var result = TPS.classify(input);
+    stato.avvisoAnnullata = false;
+    if (stato.manualCategory && !TPS.sceltaManualeValida(stato, input, result)) {
+      azzeraManuale();
+      stato.avvisoAnnullata = true;
+    }
     render(input, result);
     $('referto').value = TPS.buildReferto(input, result, {
       manualCategory: stato.manualCategory,
@@ -184,7 +195,7 @@
     $('ncRatio').value = '<0.5';
     $('car-ipercromasia').value = '';
     $('nCellule').value = '0';
-    stato.manualCategory = null; stato.manualReason = '';
+    azzeraManuale();
     aggiorna();
   });
 

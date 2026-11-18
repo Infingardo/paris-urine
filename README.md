@@ -24,6 +24,14 @@ La versione 0.3.3 gradua l'ipercromasia: lieve-moderata conta solo come criterio
 moderata-severa come criterio di alto grado (SHGUC/HGUC). Il confine AUC/SHGUC resta
 qualitativo (N/C e numero/intensità dei criteri), non numerico.
 
+La versione 0.3.4 corregge un difetto dell'interfaccia: una riclassificazione manuale restava
+attiva anche dopo aver modificato i reperti, e il referto poteva riportare una categoria scelta
+su un quadro non più presente. Ora viene annullata (con avviso) se cambiano la categoria
+morfologica, l'alert che l'aveva proposta o il motivo.
+Il paragrafo descrittivo del referto non nega più atipie inserite: nel non diagnostico resta solo
+la frase di adeguatezza; nelle altre neoplasie si descrivono le cellule neoplastiche non uroteliali;
+in un NHGUC con criteri insufficienti per AUC si riportano i criteri osservati.
+
 ## Uso
 
 Aprire `index.html` in un browser (doppio clic) oppure installarla come PWA da

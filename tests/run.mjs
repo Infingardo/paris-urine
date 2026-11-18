@@ -441,6 +441,100 @@ section('0.3.3 — ipercromasia graduata');
   check('motivazione HGUC riporta ipercromasia moderata-severa', classify(iS).motivazione.some(m => /ipercromasia moderata-severa/.test(m)));
 }
 
+section('0.3.4 — validità della riclassificazione manuale');
+{
+  const { sceltaManualeValida, motivoRiclassifica } = require('../referto.js');
+  const hg = { ncRatio: '>=0.7', caratteri: { ipercromasia: 'severa', membranaIrregolare: true }, nCellule: 'pariOSopraSoglia' };
+
+  // HGUC + polyoma → scelta manuale SHGUC
+  const i1 = inp({ ...hg, reperti: { polyoma: true } });
+  const r1 = classify(i1);
+  const a1 = r1.alert.find(a => a.tipo === 'confondente');
+  eq('motivo polyoma', motivoRiclassifica(a1, i1), 'polyomavirus/decoy cells');
+  const s1 = { manualCategory: 'SHGUC', manualReason: 'polyomavirus/decoy cells', origine: 'HGUC', alertTipo: 'confondente' };
+  check('stesso quadro → scelta valida', sceltaManualeValida(s1, i1, r1));
+
+  // il caso diventa negativo (scenario del difetto)
+  const i2 = inp({ nCellule: '0' });
+  check('quadro negativo → scelta HGUC→SHGUC non più valida', !sceltaManualeValida(s1, i2, classify(i2)));
+
+  // confondente rimosso, categoria invariata
+  const i3 = inp(hg);
+  eq('senza confondente resta HGUC', classify(i3).categoria, 'HGUC');
+  check('alert scomparso → scelta non valida', !sceltaManualeValida(s1, i3, classify(i3)));
+
+  // categoria scende a SHGUC: l'alert ora suggerisce AUC, non SHGUC
+  const i4 = inp({ ...hg, nCellule: 'sottoSoglia', reperti: { polyoma: true } });
+  check('categoria cambiata (HGUC→SHGUC) → scelta non valida', !sceltaManualeValida(s1, i4, classify(i4)));
+
+  // motivo cambiato: polyoma → effetto terapia
+  const i5 = inp({ ...hg, reperti: { effettoTerapia: true } });
+  check('motivo cambiato → scelta non valida', !sceltaManualeValida(s1, i5, classify(i5)));
+  const s5 = { ...s1, manualReason: 'effetto terapia' };
+  check('stesso quadro con effetto terapia → valida', sceltaManualeValida(s5, i5, classify(i5)));
+
+  // elevazione AUC → SHGUC da criteriParziali
+  const iU = inp({ ncRatio: '>=0.7', caratteri: { membranaIrregolare: true }, nCellule: 'pariOSopraSoglia' });
+  const sU = { manualCategory: 'SHGUC', manualReason: TPS_DATA.motivoAlert.criteriParziali, origine: 'AUC', alertTipo: 'criteriParziali' };
+  check('AUC criteriParziali → SHGUC valida', sceltaManualeValida(sU, iU, classify(iU)));
+  const iU2 = inp({ ncRatio: '>=0.7', caratteri: { membranaIrregolare: true, cromatinaGrossolana: true }, nCellule: 'pariOSopraSoglia' });
+  check('criteri diventati completi (HGUC) → elevazione non più valida', !sceltaManualeValida(sU, iU2, classify(iU2)));
+
+  check('nessuna scelta → false', !sceltaManualeValida({ manualCategory: null }, i1, r1));
+}
+
+section('0.3.4 — paragrafo citomorfologico coerente con i reperti');
+{
+  // (a) ND: solo la frase di adeguatezza, nessuna descrizione citomorfologica
+  const iA = inp({ oscuramento: 'severo', ncRatio: '0.5-0.7', nCellule: 'sottoSoglia', caratteri: { membranaIrregolare: true, ipercromasia: 'lieve' } });
+  const rA = classify(iA); eq('a — ND', rA.categoria, 'NON_DIAGNOSTICO');
+  const tA = buildReferto(iA, rA, {});
+  eq('a — ND oscuramento: solo adeguatezza', tA.split('\n')[0], 'Campione non valutabile per elementi oscuranti.');
+  check('a — ND: nessun "esente da atipie"', !/esente/.test(tA));
+  const iA2 = inp({ cellularitaAdeguata: false });
+  eq('a — ND ipocellulare: solo adeguatezza', buildReferto(iA2, classify(iA2), {}).split('\n')[0], 'Campione non diagnostico per cellularità insufficiente.');
+  const iA3 = inp({ oscuramento: 'severo', oscuramentoCausa: 'sangue' });
+  eq('a — ND con causa: niente "Fondo con" duplicato', buildReferto(iA3, classify(iA3), {}).split('\n')[0], 'Campione non valutabile per sangue.');
+
+  // (b) Altre neoplasie
+  const iB = inp({ reperti: { nonUroteliale: true }, nonUrotelialeTipo: 'adenocarcinoma', ncRatio: '>=0.7', nCellule: 'pariOSopraSoglia', caratteri: { ipercromasia: 'severa', cromatinaGrossolana: true } });
+  const tB = buildReferto(iB, classify(iB), {});
+  eq('b — con criteri', tB.split('\n')[0], 'Presenza di cellule neoplastiche di natura non uroteliale (adenocarcinoma), con rapporto N/C ≥ 0,7; si osservano ipercromasia moderata-severa e cromatina grossolana.');
+  check('b — nessuna popolazione uroteliale reattiva', !/Popolazione uroteliale/.test(tB));
+  const iB2 = inp({ reperti: { nonUroteliale: true }, ncRatio: '>=0.7', nCellule: 'sottoSoglia' });
+  eq('b — senza criteri né tipo: si ferma al N/C', buildReferto(iB2, classify(iB2), {}).split('\n')[0], 'Presenza di cellule neoplastiche di natura non uroteliale, con rapporto N/C ≥ 0,7.');
+  const iB3 = inp({ reperti: { nonUroteliale: true }, nonUrotelialeTipo: 'carcinoma squamoso' });
+  eq('b — nessuna popolazione inserita: niente N/C', buildReferto(iB3, classify(iB3), {}).split('\n')[0], 'Presenza di cellule neoplastiche di natura non uroteliale (carcinoma squamoso).');
+
+  // (c) NHGUC con criteri insufficienti per AUC
+  const iC = inp({ ncRatio: '<0.5', nCellule: 'sottoSoglia', caratteri: { membranaIrregolare: true } });
+  const rC = classify(iC); eq('c — NHGUC', rC.categoria, 'NHGUC');
+  const tC = buildReferto(iC, rC, {});
+  eq('c — descrive quanto osservato', tC.split('\n')[0], 'Popolazione uroteliale con rapporto N/C < 0,5 e membrana nucleare irregolare, insufficiente per la categoria AUC; aspetti compatibili con modificazioni reattive.');
+  check('c — nessun "atipica" su NHGUC', !/atipica/.test(tC));
+  const iC2 = inp({ ncRatio: '<0.5', nCellule: 'sottoSoglia', caratteri: { ipercromasia: 'lieve', membranaIrregolare: true } });
+  check('c — più criteri elencati', /rapporto N\/C < 0,5, ipercromasia lieve-moderata e membrana nucleare irregolare, insufficiente/.test(buildReferto(iC2, classify(iC2), {})));
+
+  const iL = inp({ ncRatio: '<0.5', nCellule: 'sottoSoglia', caratteri: { membranaIrregolare: true }, reperti: { papillareFibrovascolare: true } });
+  const rL = classify(iL); eq('c — con LGUN: NHGUC qualificato', rL.qualificatore, 'LGUN');
+  const tL = buildReferto(iL, rL, {});
+  check('c — con LGUN: frase criteri + frase LGUN', /insufficiente per la categoria AUC/.test(tL) && /basso grado/.test(tL));
+
+  // concordanza singolare/plurale
+  const iS1 = inp({ ncRatio: '0.5-0.7', nCellule: 'sottoSoglia', caratteri: { ipercromasia: 'lieve' } });
+  check('AUC un criterio → "si osserva"', /; si osserva ipercromasia lieve-moderata\./.test(buildReferto(iS1, classify(iS1), {})));
+  const iS2 = inp({ reperti: { nonUroteliale: true }, ncRatio: '>=0.7', nCellule: 'sottoSoglia', caratteri: { cromatinaGrossolana: true } });
+  check('Altre neoplasie un criterio → "si osserva"', /; si osserva cromatina grossolana\./.test(buildReferto(iS2, classify(iS2), {})));
+
+  // rami invariati
+  const iH = inp({ ncRatio: '>=0.7', nCellule: 'pariOSopraSoglia', caratteri: { ipercromasia: 'severa', membranaIrregolare: true } });
+  check('invariato — HGUC usa ancora "atipica" + many', /Popolazione uroteliale atipica.*“many”/.test(buildReferto(iH, classify(iH), {})));
+  const i0 = inp({});
+  eq('invariato — NHGUC senza popolazione', buildReferto(i0, classify(i0), {}).split('\n')[0], 'Non si osservano cellule uroteliali atipiche di rilievo.');
+  const iMod = inp({ oscuramento: 'severo', oscuramentoCausa: 'sangue', ncRatio: '>=0.7', nCellule: 'sottoSoglia', caratteri: { ipercromasia: 'severa', cromatinaGrossolana: true } });
+  check('invariato — SHGUC su oscuramento severo resta "limitato ma diagnostico"', /limitato da sangue, ma diagnostico/.test(buildReferto(iMod, classify(iMod), {})));
+}
+
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
 if (failures.length) { console.log('\nFallimenti:'); failures.forEach(f => console.log('  ✗ ' + f)); }
 process.exit(fail === 0 ? 0 : 1);

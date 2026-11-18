@@ -23,9 +23,33 @@
     return l;
   }
 
+  // Concordanza: "si osserva X" con un solo criterio, "si osservano X e Y" con piu'.
+  function siOsserva(list) {
+    return (list.length === 1 ? 'si osserva ' : 'si osservano ') + join(list);
+  }
+
   function paragrafoCitomorfologico(input, result) {
+    // (a) Non diagnostico: nessuna descrizione citomorfologica. Un campione
+    // dichiarato non valutabile non puo' essere descritto come privo di atipie;
+    // resta solo la frase di adeguatezza.
+    if (result.categoria === 'NON_DIAGNOSTICO') return '';
+
     var righe = [];
     if (input.oscuramentoCausa) righe.push('Fondo con ' + input.oscuramentoCausa + '.');
+
+    // (b) Altre neoplasie: descrive le cellule neoplastiche non uroteliali invece
+    // della popolazione uroteliale. N/C e criteri solo se c'e' una popolazione inserita.
+    if (result.categoria === 'ALTRE_NEOPLASIE') {
+      var fr = 'Presenza di cellule neoplastiche di natura non uroteliale' +
+        (input.nonUrotelialeTipo ? ' (' + input.nonUrotelialeTipo + ')' : '');
+      if ((input.nCellule || '0') !== '0') {
+        var critN = frasiCaratteri(input.caratteri);
+        fr += ', con rapporto N/C ' + DATA.ncLabel[input.ncRatio || '<0.5'] +
+          (critN.length ? '; ' + siOsserva(critN) : '');
+      }
+      righe.push(fr + '.');
+      return righe.join(' ');
+    }
 
     if ((input.nCellule || '0') === '0') {
       righe.push('Non si osservano cellule uroteliali atipiche di rilievo.');
@@ -44,7 +68,13 @@
     if (atipica) {
       righe.push('Popolazione uroteliale atipica con rapporto N/C ' +
         DATA.ncLabel[input.ncRatio || '<0.5'] +
-        (crit.length ? '; si osservano ' + join(crit) : ' senza atipie nucleari di rilievo') + '.');
+        (crit.length ? '; ' + siOsserva(crit) : ' senza atipie nucleari di rilievo') + '.');
+    } else if (crit.length) {
+      // (c) NHGUC con criteri inseriti ma insufficienti per AUC: descrivere
+      // quanto osservato, senza "atipica" e senza negarlo.
+      righe.push('Popolazione uroteliale con ' +
+        join(['rapporto N/C ' + DATA.ncLabel[input.ncRatio || '<0.5']].concat(crit)) +
+        ', insufficiente per la categoria AUC; aspetti compatibili con modificazioni reattive.');
     } else {
       righe.push('Popolazione uroteliale esente da atipie nucleari significative (rapporto N/C ' +
         DATA.ncLabel[input.ncRatio || '<0.5'] + '), con aspetti compatibili con modificazioni reattive.');
@@ -124,7 +154,31 @@
     return L.join('\n');
   }
 
-  var api = { buildReferto: buildReferto };
+  // Motivo tracciato in Nota quando si accetta l'azione suggerita da un alert.
+  // (Spostato da app.js senza cambiarne il comportamento, per poterlo testare.)
+  function motivoRiclassifica(alert, input) {
+    if (alert.tipo === 'confondente')
+      return (input.reperti || {}).polyoma ? 'polyomavirus/decoy cells' : 'effetto terapia';
+    return (DATA.motivoAlert && DATA.motivoAlert[alert.tipo]) || '';
+  }
+
+  // Una riclassificazione manuale nasce da un alert preciso su una categoria
+  // morfologica precisa. Resta valida solo finche' il classificatore produce
+  // ancora la stessa categoria e lo stesso alert, con la stessa azione e lo
+  // stesso motivo; altrimenti va annullata, per non firmare una categoria
+  // scelta su un quadro che non esiste piu'.
+  // scelta = { manualCategory, manualReason, origine, alertTipo }
+  function sceltaManualeValida(scelta, input, result) {
+    if (!scelta || !scelta.manualCategory) return false;
+    if (scelta.origine !== result.categoria) return false;
+    return (result.alert || []).some(function (a) {
+      return a.tipo === scelta.alertTipo &&
+        a.azioneSuggerita === scelta.manualCategory &&
+        motivoRiclassifica(a, input) === (scelta.manualReason || '');
+    });
+  }
+
+  var api = { buildReferto: buildReferto, motivoRiclassifica: motivoRiclassifica, sceltaManualeValida: sceltaManualeValida };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  else { root.TPS = root.TPS || {}; root.TPS.buildReferto = buildReferto; }
+  else { root.TPS = root.TPS || {}; for (var k in api) root.TPS[k] = api[k]; }
 })(typeof self !== 'undefined' ? self : this);
