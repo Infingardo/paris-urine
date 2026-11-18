@@ -124,7 +124,31 @@
     return L.join('\n');
   }
 
-  var api = { buildReferto: buildReferto };
+  // Motivo tracciato in Nota quando si accetta l'azione suggerita da un alert.
+  // (Spostato da app.js senza cambiarne il comportamento, per poterlo testare.)
+  function motivoRiclassifica(alert, input) {
+    if (alert.tipo === 'confondente')
+      return (input.reperti || {}).polyoma ? 'polyomavirus/decoy cells' : 'effetto terapia';
+    return (DATA.motivoAlert && DATA.motivoAlert[alert.tipo]) || '';
+  }
+
+  // Una riclassificazione manuale nasce da un alert preciso su una categoria
+  // morfologica precisa. Resta valida solo finche' il classificatore produce
+  // ancora la stessa categoria e lo stesso alert, con la stessa azione e lo
+  // stesso motivo; altrimenti va annullata, per non firmare una categoria
+  // scelta su un quadro che non esiste piu'.
+  // scelta = { manualCategory, manualReason, origine, alertTipo }
+  function sceltaManualeValida(scelta, input, result) {
+    if (!scelta || !scelta.manualCategory) return false;
+    if (scelta.origine !== result.categoria) return false;
+    return (result.alert || []).some(function (a) {
+      return a.tipo === scelta.alertTipo &&
+        a.azioneSuggerita === scelta.manualCategory &&
+        motivoRiclassifica(a, input) === (scelta.manualReason || '');
+    });
+  }
+
+  var api = { buildReferto: buildReferto, motivoRiclassifica: motivoRiclassifica, sceltaManualeValida: sceltaManualeValida };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
-  else { root.TPS = root.TPS || {}; root.TPS.buildReferto = buildReferto; }
+  else { root.TPS = root.TPS || {}; for (var k in api) root.TPS[k] = api[k]; }
 })(typeof self !== 'undefined' ? self : this);

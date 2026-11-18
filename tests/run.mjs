@@ -441,6 +441,48 @@ section('0.3.3 — ipercromasia graduata');
   check('motivazione HGUC riporta ipercromasia moderata-severa', classify(iS).motivazione.some(m => /ipercromasia moderata-severa/.test(m)));
 }
 
+section('0.3.4 — validità della riclassificazione manuale');
+{
+  const { sceltaManualeValida, motivoRiclassifica } = require('../referto.js');
+  const hg = { ncRatio: '>=0.7', caratteri: { ipercromasia: 'severa', membranaIrregolare: true }, nCellule: 'pariOSopraSoglia' };
+
+  // HGUC + polyoma → scelta manuale SHGUC
+  const i1 = inp({ ...hg, reperti: { polyoma: true } });
+  const r1 = classify(i1);
+  const a1 = r1.alert.find(a => a.tipo === 'confondente');
+  eq('motivo polyoma', motivoRiclassifica(a1, i1), 'polyomavirus/decoy cells');
+  const s1 = { manualCategory: 'SHGUC', manualReason: 'polyomavirus/decoy cells', origine: 'HGUC', alertTipo: 'confondente' };
+  check('stesso quadro → scelta valida', sceltaManualeValida(s1, i1, r1));
+
+  // il caso diventa negativo (scenario del difetto)
+  const i2 = inp({ nCellule: '0' });
+  check('quadro negativo → scelta HGUC→SHGUC non più valida', !sceltaManualeValida(s1, i2, classify(i2)));
+
+  // confondente rimosso, categoria invariata
+  const i3 = inp(hg);
+  eq('senza confondente resta HGUC', classify(i3).categoria, 'HGUC');
+  check('alert scomparso → scelta non valida', !sceltaManualeValida(s1, i3, classify(i3)));
+
+  // categoria scende a SHGUC: l'alert ora suggerisce AUC, non SHGUC
+  const i4 = inp({ ...hg, nCellule: 'sottoSoglia', reperti: { polyoma: true } });
+  check('categoria cambiata (HGUC→SHGUC) → scelta non valida', !sceltaManualeValida(s1, i4, classify(i4)));
+
+  // motivo cambiato: polyoma → effetto terapia
+  const i5 = inp({ ...hg, reperti: { effettoTerapia: true } });
+  check('motivo cambiato → scelta non valida', !sceltaManualeValida(s1, i5, classify(i5)));
+  const s5 = { ...s1, manualReason: 'effetto terapia' };
+  check('stesso quadro con effetto terapia → valida', sceltaManualeValida(s5, i5, classify(i5)));
+
+  // elevazione AUC → SHGUC da criteriParziali
+  const iU = inp({ ncRatio: '>=0.7', caratteri: { membranaIrregolare: true }, nCellule: 'pariOSopraSoglia' });
+  const sU = { manualCategory: 'SHGUC', manualReason: TPS_DATA.motivoAlert.criteriParziali, origine: 'AUC', alertTipo: 'criteriParziali' };
+  check('AUC criteriParziali → SHGUC valida', sceltaManualeValida(sU, iU, classify(iU)));
+  const iU2 = inp({ ncRatio: '>=0.7', caratteri: { membranaIrregolare: true, cromatinaGrossolana: true }, nCellule: 'pariOSopraSoglia' });
+  check('criteri diventati completi (HGUC) → elevazione non più valida', !sceltaManualeValida(sU, iU2, classify(iU2)));
+
+  check('nessuna scelta → false', !sceltaManualeValida({ manualCategory: null }, i1, r1));
+}
+
 console.log(`\n${fail === 0 ? 'OK' : 'FALLITO'} — ${pass} pass, ${fail} fail`);
 if (failures.length) { console.log('\nFallimenti:'); failures.forEach(f => console.log('  ✗ ' + f)); }
 process.exit(fail === 0 ? 0 : 1);
